@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试立即购买功能</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>测试立即购买功能</h1>
+        
+        <h2>1. 测试获取工具包列表</h2>
+        <button onclick="testGetToolkits()">获取工具包列表</button>
+        <div id="toolkitsResult" class="result"></div>
+        
+        <h2>2. 测试立即购买API</h2>
+        <p>工具包ID: <input type="number" id="toolkitId" value="1"> (如果上面的列表不为空，请使用实际的工具包ID)</p>
+        <button onclick="testBuyNow()">测试立即购买</button>
+        <div id="buyNowResult" class="result"></div>
+        
+        <h2>3. 测试创建订单API</h2>
+        <button onclick="testCreateOrder()">测试创建订单</button>
+        <div id="createOrderResult" class="result"></div>
+    </div>
+
+    <script>
+        // 测试获取工具包列表
+        function testGetToolkits() {
+            const resultDiv = document.getElementById('toolkitsResult');
+            resultDiv.innerHTML = '加载中...';
+            
+            fetch('http://localhost:5173/api/content?type=toolkit')
+                .then(response => response.json())
+                .then(data => {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<pre>成功获取工具包列表: ${JSON.stringify(data, null, 2)}</pre>`;
+                })
+                .catch(error => {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `错误: ${error.message}`;
+                });
+        }
+        
+        // 测试立即购买API
+        function testBuyNow() {
+            const toolkitId = document.getElementById('toolkitId').value;
+            const resultDiv = document.getElementById('buyNowResult');
+            resultDiv.innerHTML = '加载中...';
+            
+            fetch('http://localhost:5173/api/orders/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    toolkit_id: parseInt(toolkitId),
+                    quantity: 1,
+                    payment_method: 'alipay'
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.text().then(text => {
+                        throw new Error(`HTTP ${response.status}: ${text}`);
+                    });
+                }
+            })
+            .then(data => {
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `<pre>购买成功: ${JSON.stringify(data, null, 2)}</pre>`;
+            })
+            .catch(error => {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `错误: ${error.message}`;
+            });
+        }
+        
+        // 测试创建订单API
+        function testCreateOrder() {
+            const resultDiv = document.getElementById('createOrderResult');
+            resultDiv.innerHTML = '加载中...';
+            
+            fetch('http://localhost:8000/api/orders/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    toolkit_id: 1,
+                    quantity: 1,
+                    payment_method: 'alipay',
+                    total_price: 99.0
+                })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return response.text().then(text => {
+                        throw new Error(`HTTP ${response.status}: ${text}`);
+                    });
+                }
+            })
+            .then(data => {
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `<pre>创建订单成功: ${JSON.stringify(data, null, 2)}</pre>`;
+            })
+            .catch(error => {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `错误: ${error.message}`;
+            });
+        }
+    </script>
+</body>
+</html>

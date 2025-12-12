@@ -1,0 +1,28 @@
+# 前端依赖
+frontend/node_modules/
+frontend/.gitignore
+
+# 后端依赖
+backend/venv/
+
+# 构建产物
+frontend/dist/
+
+# IDE配置
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# Git相关
+.git/
+.gitignore
