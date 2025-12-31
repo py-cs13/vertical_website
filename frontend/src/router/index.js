@@ -25,11 +25,41 @@ const routes = [
     component: () => import('../views/ArticleDetailView.vue')
   },
   {
-    path: '/toolkit/:id',
-    name: 'toolkit-detail',
-    component: () => import('../views/ToolkitDetailView.vue')
+    path: '/agent/:id',
+    name: 'agent-detail',
+    component: () => import('../views/AgentDetailView.vue')
   },
-  {    path: '/user',    name: 'user-center',    component: () => import('../views/UserCenterView.vue'),    meta: { requiresAuth: true }  },  {    path: '/payment',    name: 'payment',    component: () => import('../views/PaymentView.vue'),    meta: { requiresAuth: true }  },  {    path: '/about',    name: 'about',    component: () => import('../views/AboutView.vue')  },  {    path: '/affiliate',    name: 'affiliate',    component: () => import('../views/AffiliateView.vue'),    meta: { requiresAuth: true }  },
+  {    path: '/user',    name: 'user-center',    component: () => import('../views/UserCenterView.vue'),    meta: { requiresAuth: true }  },  {    path: '/payment',    name: 'payment',    component: () => import('../views/PaymentView.vue'),    meta: { requiresAuth: true }  },  {
+    path: '/about',
+    name: 'about',
+    component: () => import('../views/AboutView.vue')
+  },
+  {
+    path: '/articles',
+    name: 'articles',
+    component: () => import('../views/ArticlesView.vue')
+  },
+  {
+    path: '/simple-articles',
+    name: 'SimpleArticles',
+    component: () => import('../views/SimpleArticlesView.vue')
+  },
+  {
+    path: '/direct-articles',
+    name: 'DirectArticles',
+    component: () => import('../views/DirectArticlesView.vue')
+  },
+  {
+    path: '/agents',
+    name: 'agents',
+    component: () => import('../views/AgentsView.vue')
+  },
+  {
+    path: '/affiliate',
+    name: 'affiliate',
+    component: () => import('../views/AffiliateView.vue'),
+    meta: { requiresAuth: true }
+  },
   // 管理后台路由
   {
     path: '/admin',
@@ -44,9 +74,9 @@ const routes = [
     meta: { requiresAdmin: true }
   },
   {
-    path: '/admin/toolkits',
-    name: 'admin-toolkits',
-    component: () => import('../views/Admin/ToolkitManagementView.vue'),
+    path: '/admin/agents',
+    name: 'admin-agents',
+    component: () => import('../views/Admin/AgentManagementView.vue'),
     meta: { requiresAdmin: true }
   },
   {

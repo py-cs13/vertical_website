@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown转换测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .original, .processed, .result {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #333;
+        }
+        h2 {
+            font-size: 24px;
+            color: #444;
+        }
+        p {
+            font-size: 16px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1>Markdown转换测试</h1>
+    
+    <div class="original">
+        <h2>原始内容</h2>
+        <pre id="originalContent"></pre>
+    </div>
+    
+    <div class="processed">
+        <h2>处理后内容</h2>
+        <pre id="processedContent"></pre>
+    </div>
+    
+    <div class="result">
+        <h2>转换结果</h2>
+        <div id="resultHtml"></div>
+    </div>
+
+    <script>
+        // 模拟从API获取的内容
+        const originalContent = "# 宝宝衣物挑选指南：二胎妈妈的纯干货分享 作为一位经历过无数踩坑的二胎妈妈，今天把最实用的宝宝衣物挑选经验分享给大家，记得先收藏再慢慢看哦💗 ## ✅ 材质选择是首要 一定要选**A类纯棉材质**！透气柔软对宝宝皮肤最友好，记得看标签上的安全类别标识哦✨ ## 📏 尺码挑选有技巧 - 新生儿建议买大1-2码，宝宝长得快，大一点更舒适 - 3个月前的宝宝准备59码最实用，性价比超高😉 ## 👗 款式选择要注意 - 首选开衫式和尚服，穿脱方便不碰头 - 避免过多装饰物，防止刮伤宝宝娇嫩皮肤";
+        
+        document.getElementById('originalContent').textContent = originalContent;
+        
+        // 预处理函数
+        function preprocessMarkdown(content) {
+            if (!content) return '';
+            
+            let processedContent = content;
+            
+            // 1. 在标题和正文之间添加换行符
+            processedContent = processedContent.replace(/(#+\s[^#\n]+)([^\n#])/g, '$1\n\n$2');
+            
+            // 2. 在二级标题之间添加换行符
+            processedContent = processedContent.replace(/(##\s[^#\n]+)(##\s)/g, '$1\n\n$2');
+            
+            // 3. 在粗体文本和普通文本之间添加适当的空格
+            processedContent = processedContent.replace(/(\*\*[^\*]+\*\*)([^\s\n])/g, '$1 $2');
+            
+            // 4. 确保列表项正确分隔
+            processedContent = processedContent.replace(/(-\s[^-\n]+)(-\s)/g, '$1\n$2');
+            
+            return processedContent;
+        }
+        
+        const processedContent = preprocessMarkdown(originalContent);
+        document.getElementById('processedContent').textContent = processedContent;
+        
+        // 转换为HTML
+        const html = marked(processedContent);
+        document.getElementById('resultHtml').innerHTML = html;
+    </script>
+</body>
+</html>

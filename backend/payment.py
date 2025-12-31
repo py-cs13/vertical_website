@@ -10,23 +10,24 @@ from logging_config import get_logger
 from models import Order, OrderItem, AffiliateLink, AffiliateClick, AffiliateCommission
 from schemas import OrderCreate, OrderItemCreate
 from config import settings
-from alipay import Alipay
+# 暂时注释掉alipay相关导入
+# from alipay import Alipay
 
-# 初始化支付宝客户端
+# 暂时注释掉支付宝客户端初始化
 ALIPAY_CLIENT = None
-if settings.ALIPAY_APP_ID and settings.ALIPAY_APP_PRIVATE_KEY and settings.ALIPAY_PUBLIC_KEY:
-    try:
-        ALIPAY_CLIENT = Alipay(
-            appid=settings.ALIPAY_APP_ID,
-            app_notify_url=settings.ALIPAY_NOTIFY_URL,  # 回调URL
-            app_private_key_string=settings.ALIPAY_APP_PRIVATE_KEY,
-            alipay_public_key_string=settings.ALIPAY_PUBLIC_KEY,
-            sign_type="RSA2",  # RSA或RSA2
-            debug=settings.ALIPAY_DEBUG  # 调试模式
-        )
-        logger.info("支付宝客户端初始化成功")
-    except Exception as e:
-        logger.error(f"初始化支付宝客户端失败：{str(e)}")
+# if settings.ALIPAY_APP_ID and settings.ALIPAY_APP_PRIVATE_KEY and settings.ALIPAY_PUBLIC_KEY:
+#     try:
+#         ALIPAY_CLIENT = Alipay(
+#             appid=settings.ALIPAY_APP_ID,
+#             app_notify_url=settings.ALIPAY_NOTIFY_URL,  # 回调URL
+#             app_private_key_string=settings.ALIPAY_APP_PRIVATE_KEY,
+#             alipay_public_key_string=settings.ALIPAY_PUBLIC_KEY,
+#             sign_type="RSA2",  # RSA或RSA2
+#             debug=settings.ALIPAY_DEBUG  # 调试模式
+#         )
+#         logger.info("支付宝客户端初始化成功")
+#     except Exception as e:
+#         logger.error(f"初始化支付宝客户端失败：{str(e)}")
 
 # 获取日志器
 logger = get_logger(__name__)
@@ -231,31 +232,31 @@ def process_payment(db: Session, order_id: int, payment_method: str, return_url:
         raise
 
 
-def check_user_purchased_toolkit(db: Session, user_id: int, toolkit_id: int) -> bool:
+def check_user_purchased_agent(db: Session, user_id: int, agent_id: int) -> bool:
     """
-    检查用户是否已购买特定工具包
+    检查用户是否已购买特定智能体
     
     Args:
         db (Session): 数据库会话
         user_id (int): 用户ID
-        toolkit_id (int): 工具包ID
+        agent_id (int): 智能体ID
         
     Returns:
         bool: 如果用户已购买则返回True，否则返回False
     """
     try:
-        # 查询用户是否有已支付的工具包订单
+        # 查询用户是否有已支付的智能体订单
         order = db.query(Order).filter(
             Order.user_id == user_id,
-            Order.product_type == "toolkit",
-            Order.product_id == toolkit_id,
+            Order.product_type == "agent",
+            Order.product_id == agent_id,
             Order.status == "paid"
         ).first()
         
         return order is not None
         
     except Exception as e:
-        logger.error(f"检查用户购买记录失败：用户ID={user_id}，工具包ID={toolkit_id}，错误={str(e)}")
+        logger.error(f"检查用户购买记录失败：用户ID={user_id}，智能体ID={agent_id}，错误={str(e)}")
         return False
 
 

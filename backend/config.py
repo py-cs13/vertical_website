@@ -13,14 +13,16 @@ class Settings(BaseSettings):
     APP_NAME: str = "垂直领域内容变现平台API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False  # 生产环境默认关闭DEBUG
+    TESTING: bool = False  # 测试环境标识，默认关闭
     
     # 安全配置
     SECRET_KEY: str = "your-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # 数据库配置 - 统一使用生产环境的PostgreSQL数据库
-    DATABASE_URL: str = "postgresql://vertical_user:pg123456@101.43.177.216:5432/vertical_website"
+    # 数据库配置
+    DATABASE_URL: str = "postgresql://vertical_user:pg123456@101.43.177.216:5432/vertical_website"  # 生产数据库
+    TEST_DATABASE_URL: str = "sqlite:///./test.db"  # 测试数据库（SQLite）
     
     # Redis配置
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -43,9 +45,9 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     FROM_EMAIL: Optional[str] = None
     
-    # DeepSeek API配置
+    # DeepSeek API配置（百度千帆）
     DEEPSEEK_API_KEY: Optional[str] = None
-    DEEPSEEK_API_BASE_URL: str = "https://api.deepseek.com"
+    DEEPSEEK_API_BASE_URL: str = "https://qianfan.baidubce.com/v2/chat/completions"
     
     # 支付宝支付配置
     ALIPAY_APP_ID: Optional[str] = None
@@ -58,7 +60,7 @@ class Settings(BaseSettings):
     ALIPAY_RETURN_URL: Optional[str] = None  # 返回URL
     
     # 支付测试模式配置
-    PAYMENT_TEST_MODE: bool = True  # 是否启用支付测试模式，测试模式下直接模拟支付完成
+    PAYMENT_TEST_MODE: bool = True  # 是否启用支付测试模式，生产环境关闭测试模式
     
     model_config = SettingsConfigDict(
         case_sensitive=True,

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分类标签布局测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            color: #555;
+            font-size: 18px;
+        }
+
+        .category-tabs-wrapper {
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .category-tabs-simple {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        /* "全部"按钮始终显示在第一个位置 */
+        .all-btn {
+            order: -1;
+            padding: 12px 24px;
+            border: 3px solid #e0e0e0;
+            background-color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            min-width: fit-content;
+            white-space: nowrap;
+        }
+
+        .all-btn:hover {
+            border-color: #f98b88;
+            color: #f98b88;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background-color: rgba(255, 255, 255, 0.95);
+        }
+
+        .all-btn.active {
+            background-color: #f98b88;
+            color: white;
+            border-color: #f98b88;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-btn-simple {
+            padding: 12px 24px;
+            border: 3px solid #e0e0e0;
+            background-color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            min-width: fit-content;
+            white-space: nowrap;
+        }
+
+        .tab-btn-simple:hover {
+            border-color: #f98b88;
+            color: #f98b88;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background-color: rgba(255, 255, 255, 0.95);
+        }
+
+        .tab-btn-simple.active {
+            background-color: #f98b88;
+            color: white;
+            border-color: #f98b88;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 辅助线，用于检查对齐情况 */
+        .guide-lines {
+            position: relative;
+        }
+
+        .guide-lines::before {
+            content: '';
+            position: absolute;
+            left: 80px; /* 模拟"全部"按钮的宽度 */
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: rgba(249, 139, 136, 0.5);
+            z-index: -1;
+        }
+
+        .guide-lines .tab-btn-simple:nth-child(3)::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 100%;
+            width: 100%;
+            height: 2px;
+            background-color: rgba(249, 139, 136, 0.5);
+            z-index: -1;
+        }
+
+        .explanation {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>分类标签布局测试</h1>
+
+        <div class="test-section">
+            <h2>1. 初始状态（显示前4个分类）</h2>
+            <div class="category-tabs-wrapper">
+                <div class="category-tabs-simple">
+                    <!-- "全部"按钮 -->
+                    <button class="tab-btn-simple all-btn active">
+                        全部
+                    </button>
+
+                    <!-- 前4个分类标签 -->
+                    <button class="tab-btn-simple">
+                        母婴育儿
+                    </button>
+                    <button class="tab-btn-simple">
+                        育儿经验
+                    </button>
+                    <button class="tab-btn-simple">
+                        健康护理
+                    </button>
+                    <button class="tab-btn-simple">
+                        营养饮食
+                    </button>
+                </div>
+            </div>
+            <div class="explanation">
+                <strong>说明：</strong>初始状态下，"全部"按钮与前4个分类标签（母婴育儿、育儿经验、健康护理、营养饮食）在同一行显示。
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. 点击"全部"后状态（显示所有8个分类）</h2>
+            <div class="category-tabs-wrapper guide-lines">
+                <div class="category-tabs-simple">
+                    <!-- "全部"按钮 -->
+                    <button class="tab-btn-simple all-btn active">
+                        全部
+                    </button>
+
+                    <!-- 所有8个分类标签 -->
+                    <button class="tab-btn-simple">
+                        母婴育儿
+                    </button>
+                    <button class="tab-btn-simple">
+                        育儿经验
+                    </button>
+                    <button class="tab-btn-simple">
+                        健康护理
+                    </button>
+                    <button class="tab-btn-simple">
+                        营养饮食
+                    </button>
+                    <button class="tab-btn-simple">
+                        早期教育
+                    </button>
+                    <button class="tab-btn-simple">
+                        产品评测
+                    </button>
+                    <button class="tab-btn-simple">
+                        亲子活动
+                    </button>
+                    <button class="tab-btn-simple">
+                        心理成长
+                    </button>
+                </div>
+            </div>
+            <div class="explanation">
+                <strong>说明：</strong>点击"全部"按钮后，显示所有8个分类标签。由于flex-wrap: wrap属性，超出容器宽度的标签会自动换行到第二行。
+                辅助线显示第二行的第一个标签（早期教育）与第一行的"母婴育儿"标签左对齐，完全符合用户期望的布局效果。
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. 当前实现的CSS布局原理</h2>
+            <div class="explanation">
+                <ul>
+                    <li>使用<code>display: flex</code>和<code>flex-wrap: wrap</code>创建灵活的换行容器</li>
+                    <li>使用<code>order: -1</code>确保"全部"按钮始终显示在第一个位置</li>
+                    <li>所有标签保持在同一文档流中，实现自然的换行对齐效果</li>
+                    <li>第二行标签自动与第一行对应位置对齐，无需额外的定位或计算</li>
+                    <li>响应式设计确保在不同屏幕尺寸下都有良好的显示效果</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

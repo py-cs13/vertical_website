@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute, onBeforeRouteUpdate } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router'
 import Header from './components/Header.vue'
 import Sidebar from './components/Sidebar.vue'
 import Footer from './components/Footer.vue'
 import { useContentStore, useAuthStore } from './stores'
 
 const route = useRoute()
+const router = useRouter()
 const contentStore = useContentStore()
 const userStore = useAuthStore()
 const showSidebar = ref(true)
@@ -20,7 +21,7 @@ onMounted(() => {
   checkMobileDevice()
   // 加载内容列表
   contentStore.fetchLatestArticles()
-  contentStore.fetchLatestToolkits()
+  // contentStore.fetchLatestToolkits() - 已删除工具包功能
   
   // 检测URL中的推广参数
   checkReferral()
@@ -50,10 +51,13 @@ const checkReferral = () => {
 // 每次路由切换前确保认证信息存在
 onBeforeRouteUpdate(() => {
   userStore.ensureAuth()
+  checkSidebarVisibility() // 路由变化时更新侧边栏可见性
 })
 
+// 显示逻辑：在所有页面都显示侧边栏，除了特定页面
 const checkSidebarVisibility = () => {
-  showSidebar.value = route.path === '/'
+  // 可以在这里添加例外页面，例如：route.path === '/admin' 等
+  showSidebar.value = true // 所有页面都显示侧边栏
 }
 
 // 检测移动设备
@@ -63,6 +67,15 @@ const checkMobileDevice = () => {
   if (isMobile.value && route.path !== '/') {
     showSidebar.value = false
   }
+}
+
+// 处理分类筛选
+const handleCategoryFilter = (categoryName) => {
+  // 跳转到文章列表页面，并携带分类参数
+  router.push({
+    path: '/articles',
+    query: { category: categoryName }
+  })
 }
 </script>
 
@@ -85,7 +98,7 @@ const checkMobileDevice = () => {
           </section>
           
           <!-- 侧边栏 -->
-          <Sidebar v-if="showSidebar" />
+          <Sidebar v-if="showSidebar" @filter-category="handleCategoryFilter" />
         </div>
       </div>
     </main>
@@ -121,6 +134,27 @@ const checkMobileDevice = () => {
   gap: 30px;
   align-items: flex-start;
   position: relative;
+  width: 100%;
+}
+
+/* 确保在大屏幕上内容区域和侧边栏的整体布局更加平衡 */
+@media (min-width: 1200px) {
+  /* 在大屏幕上，为内容区域和侧边栏添加统一的外边距 */
+  .content-view {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  /* 确保侧边栏不会挤压主内容 */
+  .sidebar {
+    flex-shrink: 0;
+  }
+  
+  /* 调整整体容器，确保左右留白对称 */
+  .container {
+    max-width: calc(1200px + 40px); /* 包含左右各20px的边距 */
+    padding: 0;
+  }
 }
 
 .content-view {
@@ -130,6 +164,8 @@ const checkMobileDevice = () => {
   padding: 30px;
   box-shadow: var(--shadow-medium);
   transition: all 0.3s ease;
+  box-sizing: border-box;
+  /* 移除可能影响侧边栏点击的溢出设置 */
 }
 
 .content-view:hover {

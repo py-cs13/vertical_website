@@ -19,7 +19,7 @@ def main():
     })
     headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer bce-v3/ALTAK-CY40GtnpaRqV7Q5Q6eJTz/6f8f0b57ba68382fa8e48a530562bb2576ecfdef'
+        'Authorization': 'Bearer bce-v3/ALTAK-OEDzOCluCBBuHNJEpYiyl/3fab2d3ab72ff5e8989662759399c0e3cbfa0333'
     }
     
     response = requests.request("POST", url, headers=headers, data=payload)

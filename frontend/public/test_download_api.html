@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试下载API</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 5px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>测试下载API</h1>
+    
+    <div class="test-section">
+        <h2>检查本地存储</h2>
+        <button onclick="checkLocalStorage()">检查localStorage</button>
+        <div id="localStorageResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试下载API</h2>
+        <label for="toolkitId">工具包ID:</label>
+        <input type="text" id="toolkitId" value="107" style="padding: 5px; margin: 0 10px;">
+        <button onclick="testDownloadApi()">测试下载</button>
+        <div id="downloadResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>直接下载测试</h2>
+        <button onclick="directDownload()">直接下载工具包</button>
+    </div>
+
+    <script>
+        // 创建axios实例
+        const apiClient = axios.create({
+            baseURL: 'http://localhost:5174/api',
+            timeout: 10000,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        // 检查localStorage
+        function checkLocalStorage() {
+            const resultDiv = document.getElementById('localStorageResult');
+            
+            const user = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+            
+            resultDiv.innerHTML = `
+                <strong>localStorage状态:</strong><br>
+                用户信息存在: ${!!user}<br>
+                Token存在: ${!!token}<br>
+                Token: ${token ? token.substring(0, 20) + '...' : '无'}
+            `;
+        }
+        
+        // 测试下载API
+        async function testDownloadApi() {
+            const resultDiv = document.getElementById('downloadResult');
+            const toolkitId = document.getElementById('toolkitId').value;
+            
+            if (!toolkitId) {
+                resultDiv.innerHTML = '<span class="error">请输入工具包ID</span>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '正在测试下载API...';
+            
+            try {
+                // 添加认证token
+                const token = localStorage.getItem('token');
+                if (token) {
+                    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const url = `/toolkits/${toolkitId}/download`;
+                console.log('请求URL:', url);
+                
+                const response = await apiClient.get(url, {
+                    responseType: 'blob'
+                });
+                
+                resultDiv.innerHTML = `
+                    <span class="success">✓ 下载API调用成功</span><br>
+                    状态码: ${response.status}<br>
+                    响应类型: ${response.data.type}<br>
+                    Content-Disposition: ${response.headers['content-disposition']}<br>
+                    文件大小: ${Math.round(response.data.size / 1024)} KB
+                `;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <span class="error">✗ 下载API调用失败</span><br>
+                    错误状态: ${error.response?.status || '未知'}<br>
+                    错误信息: ${error.message}<br>
+                    请求URL: ${error.config?.url || '未知'}
+                `;
+                console.error('下载错误:', error);
+            }
+        }
+        
+        // 直接下载
+        async function directDownload() {
+            const toolkitId = document.getElementById('toolkitId').value;
+            
+            if (!toolkitId) {
+                alert('请输入工具包ID');
+                return;
+            }
+            
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    alert('请先登录');
+                    return;
+                }
+                
+                const response = await apiClient.get(`/toolkits/${toolkitId}/download`, {
+                    responseType: 'blob'
+                });
+                
+                // 创建下载链接
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                
+                // 设置文件名
+                const contentDisposition = response.headers['content-disposition'];
+                const filename = contentDisposition ? contentDisposition.split('filename=')[1].replace(/"/g, '') : `toolkit_${toolkitId}.pdf`;
+                link.setAttribute('download', filename);
+                
+                // 触发下载
+                document.body.appendChild(link);
+                link.click();
+                
+                // 清理
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(link);
+                
+                alert('下载成功');
+                
+            } catch (error) {
+                alert(`下载失败: ${error.response?.status || 500} - ${error.message}`);
+                console.error('下载错误:', error);
+            }
+        }
+        
+        // 页面加载时检查localStorage
+        window.onload = checkLocalStorage;
+    </script>
+</body>
+</html>

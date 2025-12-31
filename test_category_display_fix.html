@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分类标签显示修复测试</title>
+    <style>
+        /* 模拟Vue组件的样式 */
+        .articles-view {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* 分类标签样式 - 修复前 */
+        .category-tabs-wrapper {
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 50;
+        }
+
+        /* 修复前的样式 - 没有flex-wrap: wrap */
+        .category-tabs-simple-before {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+            position: relative;
+            z-index: 51;
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        /* 修复后的样式 - 添加flex-wrap: wrap */
+        .category-tabs-simple-after {
+            display: flex;
+            gap: 10px;
+            padding: 10px 0;
+            position: relative;
+            z-index: 51;
+            background-color: #e8f5e9;
+            padding: 20px;
+            border-radius: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn-simple {
+            flex-shrink: 0;
+            padding: 12px 24px;
+            border: 3px solid #e0e0e0;
+            background-color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            min-width: fit-content;
+            white-space: nowrap;
+        }
+
+        .tab-btn-simple:hover {
+            border-color: #f98b88;
+            color: #f98b88;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background-color: rgba(255, 255, 255, 0.95);
+        }
+
+        .tab-btn-simple.active {
+            background-color: #f98b88;
+            color: white;
+            border-color: #f98b88;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .category-tabs-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        /* 说明文本样式 */
+        .explanation {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            border-radius: 4px;
+        }
+
+        .explanation h3 {
+            margin-top: 0;
+            color: #f57c00;
+        }
+    </style>
+</head>
+<body>
+    <div class="articles-view">
+        <h2>分类标签显示修复测试</h2>
+
+        <div class="explanation">
+            <h3>问题分析</h3>
+            <p>点击"全部"按钮时没有显示所有分类标签的原因：</p>
+            <ul>
+                <li><strong>CSS样式问题</strong>：<code>.category-tabs-simple</code> 类使用了 <code>display: flex</code> 但没有设置 <code>flex-wrap: wrap</code></li>
+                <li><strong>导致结果</strong>：所有分类标签尝试在一行显示，超出容器宽度的标签被隐藏</li>
+                <li><strong>修复方案</strong>：为 <code>.category-tabs-simple</code> 添加 <code>flex-wrap: wrap</code> 属性，让标签可以自动换行</li>
+            </ul>
+        </div>
+
+        <h3>修复前的效果（没有flex-wrap: wrap）</h3>
+        <p>注意：分类标签会在一行显示，超出部分会被隐藏，需要水平滚动才能看到全部</p>
+        <div class="category-tabs-wrapper">
+            <div class="category-tabs-simple-before">
+                <!-- "全部"按钮 -->
+                <button class="tab-btn-simple active">
+                    全部
+                </button>
+
+                <!-- 其他分类标签 -->
+                <div class="category-tabs-container">
+                    <button class="tab-btn-simple">母婴育儿</button>
+                    <button class="tab-btn-simple">育儿知识</button>
+                    <button class="tab-btn-simple">营养辅食</button>
+                    <button class="tab-btn-simple">产后恢复</button>
+                    <button class="tab-btn-simple">亲子互动</button>
+                    <button class="tab-btn-simple">成长发育</button>
+                    <button class="tab-btn-simple">早期教育</button>
+                    <button class="tab-btn-simple">健康养生</button>
+                </div>
+            </div>
+        </div>
+
+        <h3>修复后的效果（添加了flex-wrap: wrap）</h3>
+        <p>注意：分类标签会自动换行，所有标签都能正常显示</p>
+        <div class="category-tabs-wrapper">
+            <div class="category-tabs-simple-after">
+                <!-- "全部"按钮 -->
+                <button class="tab-btn-simple active">
+                    全部
+                </button>
+
+                <!-- 其他分类标签 -->
+                <div class="category-tabs-container">
+                    <button class="tab-btn-simple">母婴育儿</button>
+                    <button class="tab-btn-simple">育儿知识</button>
+                    <button class="tab-btn-simple">营养辅食</button>
+                    <button class="tab-btn-simple">产后恢复</button>
+                    <button class="tab-btn-simple">亲子互动</button>
+                    <button class="tab-btn-simple">成长发育</button>
+                    <button class="tab-btn-simple">早期教育</button>
+                    <button class="tab-btn-simple">健康养生</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h3>修复总结</h3>
+            <p>通过在 <code>.category-tabs-simple</code> 类中添加 <code>flex-wrap: wrap</code> 属性，解决了分类标签在点击"全部"按钮时无法完整显示的问题。现在所有分类标签都会自动换行，用户可以清晰地看到和选择所有分类。</p>
+        </div>
+    </div>
+
+    <script>
+        // 模拟Vue的交互逻辑
+        console.log('分类标签显示修复测试页面加载完成');
+        console.log('修复内容：为.category-tabs-simple添加flex-wrap: wrap');
+    </script>
+</body>
+</html>

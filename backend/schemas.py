@@ -97,7 +97,7 @@ class ContentBase(BaseModel):
     """内容基础模型，包含公共字段"""
     title: str = Field(..., min_length=5, max_length=200, description="内容标题")
     category: str = Field(..., min_length=1, max_length=50, description="内容分类")
-    summary: str = Field(..., min_length=10, max_length=500, description="内容摘要")
+    summary: str = Field(..., min_length=5, max_length=500, description="内容摘要")
     content: str = Field(..., min_length=50, max_length=100000, description="内容详情，最多10万字")
     
     @validator('category')
@@ -117,7 +117,7 @@ class ContentUpdate(BaseModel):
     """内容更新请求模型"""
     title: Optional[str] = Field(None, min_length=5, max_length=200, description="内容标题")
     category: Optional[str] = Field(None, min_length=1, max_length=50, description="内容分类")
-    summary: Optional[str] = Field(None, min_length=10, max_length=500, description="内容摘要")
+    summary: Optional[str] = Field(None, min_length=5, max_length=500, description="内容摘要")
     content: Optional[str] = Field(None, min_length=50, max_length=100000, description="内容详情，最多10万字")
     is_published: Optional[bool] = Field(None, description="是否发布")
     
@@ -136,11 +136,12 @@ class ContentResponse(BaseModel):
     id: int
     title: str = Field(..., min_length=5, max_length=200, description="内容标题")
     category: str = Field(..., min_length=1, max_length=50, description="内容分类")
-    summary: str = Field(..., min_length=10, max_length=500, description="内容摘要")
+    summary: str = Field(..., min_length=5, max_length=500, description="内容摘要")
     content: str = Field(..., min_length=1, max_length=100000, description="内容详情，最多10万字")
     author_id: int
     is_published: bool
     view_count: int
+    likes: int = Field(0, description="点赞数")
     created_at: datetime
     updated_at: datetime
     published_at: Optional[datetime]
@@ -148,6 +149,9 @@ class ContentResponse(BaseModel):
     
     class Config:
         from_attributes = True  # 支持从ORM模型直接转换
+        json_encoders = {
+            str: lambda v: v
+        }
 
 
 class ContentListResponse(BaseModel):
@@ -155,6 +159,64 @@ class ContentListResponse(BaseModel):
     status: str
     data: List[ContentResponse]
     total: int
+
+
+# 收藏相关模型
+
+class FavoriteCreate(BaseModel):
+    """收藏创建请求模型"""
+    content_id: int = Field(..., ge=1, description="内容ID，必须大于等于1")
+
+
+class FavoriteResponse(BaseModel):
+    """收藏响应模型"""
+    id: int
+    user_id: int
+    content_id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class FavoriteContentResponse(BaseModel):
+    """收藏内容响应模型（包含文章信息）"""
+    id: int
+    content_id: int
+    content: ContentResponse
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class FavoriteListResponse(BaseModel):
+    """收藏列表响应模型"""
+    status: str
+    data: List[FavoriteContentResponse]
+    total: int
+
+
+class ContentWithLikedResponse(BaseModel):
+    """带收藏状态的内容响应模型"""
+    id: int
+    title: str = Field(..., min_length=5, max_length=200, description="内容标题")
+    category: str = Field(..., min_length=1, max_length=50, description="内容分类")
+    summary: str = Field(..., min_length=5, max_length=500, description="内容摘要")
+    content: str = Field(..., min_length=1, max_length=100000, description="内容详情，最多10万字")
+    author_id: int
+    is_published: bool
+    view_count: int
+    likes: int = Field(0, description="点赞数")
+    created_at: datetime
+    updated_at: datetime
+    published_at: Optional[datetime]
+    price: Optional[float] = Field(None, description="价格")
+    is_liked: bool = Field(False, description="是否已点赞")
+    is_collected: bool = Field(False, description="是否已收藏")
+    
+    class Config:
+        from_attributes = True
 
 
 # 认证相关模型
@@ -287,3 +349,86 @@ class OrderListResponse(BaseModel):
     status: str
     data: List[OrderResponse]
     total: int
+
+
+# 智能体对话相关模型
+
+class AgentMessage(BaseModel):
+    """智能体消息模型，用于表示对话历史中的单条消息"""
+    role: str = Field(..., description="消息角色: user(用户) 或 assistant(智能体)")
+    content: str = Field(..., description="消息内容")
+    id: Optional[str] = Field(None, description="消息ID")
+
+
+class AgentConversationRequest(BaseModel):
+    """智能体对话请求模型"""
+    message: str = Field(..., description="用户当前消息")
+    conversation_history: List[AgentMessage] = Field(..., description="对话历史")
+    
+
+class AgentConversationResponse(BaseModel):
+    """智能体对话响应模型"""
+    status: str = Field(default="success", description="响应状态")
+    content: str = Field(..., description="智能体响应内容")
+    generated_agent: Optional[str] = Field(None, description="生成的智能体HTML内容")
+    agent_title: Optional[str] = Field(None, description="生成的智能体标题")
+    is_agent: bool = Field(default=False, description="是否生成了智能体")
+    success: bool = Field(default=True, description="请求是否成功")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "content": "已为您生成个性化智能体！",
+                "generated_agent": "<h1>个性化智能体</h1>...",
+                "agent_title": "0-1岁宝宝睡眠调整智能体",
+                "is_agent": True,
+                "success": True
+            }
+        }
+
+
+# 点赞相关模型
+
+class LikeCreate(BaseModel):
+    """点赞创建请求模型"""
+    content_id: int = Field(..., ge=1, description="内容ID，必须大于等于1")
+
+
+class LikeResponse(BaseModel):
+    """点赞响应模型"""
+    id: int
+    user_id: int
+    content_id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class LikeStatusResponse(BaseModel):
+    """点赞状态响应模型"""
+    is_liked: bool = Field(False, description="是否已点赞")
+    like_count: int = Field(0, description="点赞总数")
+
+
+class ContentWithLikeStatusResponse(BaseModel):
+    """带点赞状态的内容响应模型（用于详情页）"""
+    id: int
+    title: str = Field(..., min_length=5, max_length=200, description="内容标题")
+    category: str = Field(..., min_length=1, max_length=50, description="内容分类")
+    summary: str = Field(..., min_length=5, max_length=500, description="内容摘要")
+    content: str = Field(..., min_length=1, max_length=100000, description="内容详情，最多10万字")
+    author_id: int
+    is_published: bool
+    view_count: int
+    like_count: int = Field(0, description="点赞总数")
+    created_at: datetime
+    updated_at: datetime
+    published_at: Optional[datetime]
+    price: Optional[float] = Field(None, description="价格")
+    is_liked: bool = Field(False, description="当前用户是否已点赞")
+    is_collected: bool = Field(False, description="当前用户是否已收藏")
+    
+    class Config:
+        from_attributes = True

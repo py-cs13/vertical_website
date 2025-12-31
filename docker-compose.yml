@@ -1,76 +1,94 @@
+version: '3.8'
+
 services:
-  # PostgreSQL数据库服务
-  website_postgres:
+  # PostgreSQL 数据库
+  postgres:
     image: postgres:15-alpine
     container_name: website_postgres
-    restart: always
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB=vertical_website
-      - POSTGRES_USER=vertical_user
-      - POSTGRES_PASSWORD=pg123456  # 生产环境请使用强密码
+      POSTGRES_DB: vertical_website
+      POSTGRES_USER: vertical_user
+      POSTGRES_PASSWORD: pg123456
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - project-website_backend-net
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
+    networks:
+      - website_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U vertical_user -d vertical_website"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
 
-  # Redis服务
-  website_redis:
+  # Redis 缓存
+  redis:
     image: redis:7-alpine
     container_name: website_redis
-    restart: always
+    restart: unless-stopped
     environment:
-      - REDIS_PASSWORD=redis123456  # Redis密码
+      REDIS_PASSWORD: redis123456
     volumes:
       - redis_data:/data
-    networks:
-      - project-website_backend-net
     ports:
       - "6379:6379"
     command: redis-server --requirepass redis123456
+    networks:
+      - website_network
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a redis123456 ping"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
 
   # 后端服务
-  website_backend:
-    image: registry.cn-hangzhou.aliyuncs.com/meta-jiujiu/website_backend:test_1 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.new
     container_name: website_backend
-    restart: always
+    restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql://vertical_user:pg123456@website_postgres:5432/vertical_website
-      - REDIS_URL=redis://:redis123456@website_redis:6379/0
-      - SECRET_KEY=your_production_secret_key  # 生产环境请使用强密钥
+      - DATABASE_URL=postgresql://vertical_user:pg123456@postgres:5432/vertical_website
+      - REDIS_URL=redis://:redis123456@redis:6379/0
+      - SECRET_KEY=your_production_secret_key_here_change_in_production
       - DEBUG=False
       - APP_ENV=production
     depends_on:
-      website_postgres:
+      postgres:
         condition: service_healthy
-      website_redis:
+      redis:
         condition: service_healthy
+    ports:
+      - "8000:8000"
     networks:
-      - project-website_backend-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.website_backend.rule=Host(`backend.quzhinan.cn`)"
-      - "traefik.http.routers.website_backend.entrypoints=web"
-      - "traefik.http.services.website_backend.loadbalancer.server.port=8000"
+      - website_network
+    volumes:
+      - ./backend/static:/app/static:ro
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.new
+    container_name: website_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - website_network
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
-    name: vertical_website_postgres_data
+    driver: local
   redis_data:
-    name: vertical_website_redis_data
+    driver: local
 
 networks:
-  project-website_backend-net:
-    name: project-website_backend-net
-    external: true
+  website_network:
+    driver: bridge
+    name: website_backend-net

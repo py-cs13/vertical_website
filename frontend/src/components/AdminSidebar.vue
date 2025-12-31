@@ -47,7 +47,7 @@
               <router-link to="/admin/contents/articles" active-class="active">文章管理</router-link>
             </li>
             <li>
-              <router-link to="/admin/contents/toolkits" active-class="active">工具包管理</router-link>
+              <router-link to="/admin/contents/agents" active-class="active">智能体管理</router-link>
             </li>
           </ul>
         </li>

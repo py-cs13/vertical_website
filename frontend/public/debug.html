@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文章页面调试</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .debug-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .debug-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        pre {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .debug-info {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .article-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .article-card {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .article-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+        .article-summary {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>文章页面调试工具</h1>
+        
+        <div class="debug-section">
+            <h2>1. 测试API获取</h2>
+            <button id="test-api-btn">获取API数据</button>
+            <div class="debug-info">
+                <p>API返回文章数量: <span id="api-count">0</span></p>
+            </div>
+            <pre id="api-result"></pre>
+        </div>
+        
+        <div class="debug-section">
+            <h2>2. 测试过滤和补充逻辑</h2>
+            <button id="test-filter-btn">运行过滤逻辑</button>
+            <div class="debug-info">
+                <p>有效文章数量: <span id="valid-count">0</span></p>
+                <p>显示文章数量: <span id="display-count">0</span></p>
+            </div>
+            <pre id="filter-result"></pre>
+        </div>
+        
+        <div class="debug-section">
+            <h2>3. 模拟页面显示</h2>
+            <div id="app">
+                <div class="debug-info">
+                    <p>当前显示: {{ displayedCount }} 篇文章</p>
+                    <p>总文章数: {{ articles.length }}</p>
+                </div>
+                <div class="article-list">
+                    <div v-for="article in displayedArticles" :key="article.id" class="article-card">
+                        <div class="article-title">{{ article.title }}</div>
+                        <div class="article-summary">{{ article.summary }}</div>
+                    </div>
+                </div>
+                <button @click="loadMore" v-if="displayedCount < articles.length">加载更多</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量存储API数据
+        let apiData = [];
+        
+        // 测试API获取
+        document.getElementById('test-api-btn').addEventListener('click', async () => {
+            try {
+                const response = await axios.get('http://localhost:8000/api/articles');
+                apiData = response.data.data || response.data || [];
+                document.getElementById('api-count').textContent = apiData.length;
+                document.getElementById('api-result').textContent = JSON.stringify(apiData.slice(0, 10), null, 2);
+            } catch (error) {
+                document.getElementById('api-result').textContent = 'API请求失败: ' + error.message;
+            }
+        });
+        
+        // 测试过滤逻辑
+        document.getElementById('test-filter-btn').addEventListener('click', () => {
+            if (apiData.length === 0) {
+                document.getElementById('filter-result').textContent = '请先获取API数据';
+                return;
+            }
+            
+            const displayedCount = 6;
+            
+            // 过滤掉标题或摘要中包含不合法字符的文章
+            const validArticles = apiData.filter(article => {
+                const hasInvalidChars = /[#*]{3,}/.test(article.title + article.summary);
+                return !hasInvalidChars;
+            });
+            
+            let result = validArticles.slice(0, displayedCount);
+            
+            // 如果有效文章不足displayedCount，从剩余文章中补充
+            if (result.length < displayedCount) {
+                const remainingArticles = apiData.filter(article => {
+                    const hasInvalidChars = /[#*]{3,}/.test(article.title + article.summary);
+                    return hasInvalidChars;
+                });
+                
+                const supplementCount = displayedCount - result.length;
+                const supplementArticles = remainingArticles.slice(0, supplementCount);
+                
+                // 对补充的文章进行字符清理
+                const cleanedSupplementArticles = supplementArticles.map(article => {
+                    return {
+                        ...article,
+                        title: article.title.replace(/[#*]{3,}/g, ''),
+                        summary: article.summary.replace(/[#*]{3,}/g, '')
+                    };
+                });
+                
+                result = [...result, ...cleanedSupplementArticles];
+            }
+            
+            document.getElementById('valid-count').textContent = validArticles.length;
+            document.getElementById('display-count').textContent = result.length;
+            document.getElementById('filter-result').textContent = JSON.stringify(result, null, 2);
+        });
+        
+        // Vue应用模拟页面显示
+        const { createApp, ref, computed } = Vue;
+        
+        createApp({
+            setup() {
+                const articles = ref([]);
+                const displayedCount = ref(6);
+                const loadStep = 4;
+                
+                // 计算当前显示的文章
+                const displayedArticles = computed(() => {
+                    // 过滤掉标题或摘要中包含不合法字符的文章
+                    const validArticles = articles.value.filter(article => {
+                        const hasInvalidChars = /[#*]{3,}/.test(article.title + article.summary);
+                        return !hasInvalidChars;
+                    });
+                    
+                    let result = validArticles.slice(0, displayedCount.value);
+                    
+                    // 如果有效文章不足displayedCount，从剩余文章中补充
+                    if (result.length < displayedCount.value) {
+                        const remainingArticles = articles.value.filter(article => {
+                            const hasInvalidChars = /[#*]{3,}/.test(article.title + article.summary);
+                            return hasInvalidChars;
+                        });
+                        
+                        const supplementCount = displayedCount.value - result.length;
+                        const supplementArticles = remainingArticles.slice(0, supplementCount);
+                        
+                        // 对补充的文章进行字符清理
+                        const cleanedSupplementArticles = supplementArticles.map(article => {
+                            return {
+                                ...article,
+                                title: article.title.replace(/[#*]{3,}/g, ''),
+                                summary: article.summary.replace(/[#*]{3,}/g, '')
+                            };
+                        });
+                        
+                        result = [...result, ...cleanedSupplementArticles];
+                    }
+                    
+                    return result;
+                });
+                
+                // 加载更多文章
+                const loadMore = () => {
+                    displayedCount.value += loadStep;
+                };
+                
+                // 初始化获取文章
+                axios.get('http://localhost:8000/api/articles')
+                    .then(response => {
+                        articles.value = response.data.data || response.data || [];
+                    })
+                    .catch(error => {
+                        console.error('获取文章失败:', error);
+                    });
+                
+                return {
+                    articles,
+                    displayedCount,
+                    displayedArticles,
+                    loadMore
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

@@ -7,786 +7,388 @@
       <div class="decoration-icon">🎀</div>
     </div>
     
-    <!-- 页面标题 -->
-    <h1 class="page-title">母婴生活内容平台</h1>
-    <p class="page-subtitle">专业的母婴知识分享，陪伴宝贝健康成长每一天</p>
+    <!-- 页面副标题 -->
+    <p class="page-subtitle main-subtitle">专业的母婴知识分享，陪伴宝贝健康成长每一天</p>
     
-    <!-- 内容分类标签 -->
-    <div class="category-tabs">
-      <button 
-        v-for="category in categories" 
-        :key="category.id" 
-        class="tab-btn" 
-        :class="{ active: activeCategory === category.id }"
-        @click="filterContent(category.id)"
-      >
-        <span class="tab-icon">{{ getCategoryIcon(category.name) }}</span>
-        {{ category.name }}
-      </button>
-    </div>
-    
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading-container">
-      <div class="loading-spinner">
-        <div class="spinner"></div>
-        <p>正在加载内容...</p>
-      </div>
-    </div>
-    
-    <!-- 内容列表 -->
-    <div v-else-if="filteredContent.length > 0" class="content-list">
-      <div 
-        v-for="item in filteredContent" 
-        :key="item.id" 
-        class="content-card"
-        :class="{ 'content-card-toolkit': item.type === 'toolkit' }"
-      >
-        <div class="card-header">
-          <div class="card-category">
-            <span class="category-icon">{{ getCategoryIcon(item.category) }}</span>
-            {{ item.category }}
+    <!-- 第一区块：欢迎内容 -->
+    <div class="welcome-section">
+      <h1 class="welcome-title">👩‍👧‍👦 欢迎来到母婴知识宝库</h1>
+      <p class="welcome-text">
+        在这里，我们为每一位新手妈妈和准妈妈提供最专业、最贴心的母婴知识。
+        从孕期护理到产后恢复，从婴儿护理到早期教育，我们陪伴您和宝宝一起成长。
+      </p>
+      
+      <!-- 功能导航 -->
+      <div class="feature-nav">
+        <router-link to="/articles" class="feature-card">
+          <div class="feature-icon">📚</div>
+          <div class="feature-info">
+            <h3>精选文章</h3>
+            <p>阅读专业母婴知识</p>
           </div>
-          <div class="card-type">{{ item.type === 'article' ? '📚 文章' : '🎁 工具包' }}</div>
-        </div>
-
+        </router-link>
         
-        <h3 class="card-title">
-          <router-link :to="`/${item.type === 'article' ? 'article' : 'toolkit'}/${item.id}`">
-            {{ item.title || '标题加载中...' }}
-          </router-link>
-        </h3>
-        
-        <p class="card-summary">{{ item.summary || '内容摘要加载中...' }}</p>
-        
-        <div class="card-meta">
-          <span class="meta-item">
-            <i class="icon">📅</i> {{ formatDate(item.created_at || '2024-06-03') }}
-          </span>
-          <span class="meta-item">
-            <i class="icon">👁️‍🗨️</i> {{ formatNumber(item.views || 0) }}
-          </span>
-          <span class="meta-item">
-            <i class="icon">❤️</i> {{ formatNumber(item.likes || 0) }}
-          </span>
-          <span v-if="item.type === 'toolkit'" class="meta-item price">
-            <i class="icon">💰</i> ¥{{ item.price || 99.0 }}
-          </span>
-        </div>
-        
-        <div class="card-actions">
-          <router-link 
-            :to="`/${item.type === 'article' ? 'article' : 'toolkit'}/${item.id}`" 
-            class="read-more-btn"
-          >
-            {{ item.type === 'article' ? '阅读全文' : '查看详情' }} →
-          </router-link>
-          <button v-if="item.type === 'toolkit'" class="buy-btn" @click="buyToolkit(item)">立即购买</button>
-        </div>
+        <router-link to="/agents" class="feature-card">
+          <div class="feature-icon">🧸</div>
+          <div class="feature-info">
+            <h3>智能体</h3>
+            <p>实用的育儿工具</p>
+          </div>
+        </router-link>
       </div>
     </div>
     
-    <!-- 空状态 -->
-    <div v-else class="empty-state">
-      <div class="empty-icon">📚</div>
-      <h3>暂无内容</h3>
-      <p>该分类下暂时没有相关内容，换个分类试试吧！</p>
+    <!-- 分隔装饰 -->
+    <div class="section-divider">
+      <div class="divider-line"></div>
+      <div class="divider-icon">✨</div>
+      <div class="divider-line"></div>
     </div>
     
-
+    <!-- 第二区块：推荐文章 -->
+    <div class="recommended-section" v-if="recommendedArticles.length > 0">
+      <h2 class="recommended-title">🔥 热门推荐</h2>
+      <div class="recommended-cards">
+        <router-link 
+          v-for="article in recommendedArticles" 
+          :key="article.id"
+          :to="`/article/${article.id}`"
+          class="recommended-card"
+        >
+          <div class="recommended-category">{{ article.category }}</div>
+          <h3 class="recommended-card-title">{{ article.title }}</h3>
+          <p class="recommended-summary">{{ article.summary }}</p>
+          <span class="read-more-text">阅读更多 →</span>
+        </router-link>
+      </div>
+    </div>
     
-
-    
-    <!-- 加载更多按钮 -->
-    <div class="load-more">
-      <button class="load-more-btn" @click="loadMoreContent">加载更多</button>
+    <!-- 加载中状态 -->
+    <div class="loading-recommended" v-else-if="loading">
+      <p>加载推荐内容中...</p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useContentStore, useAuthStore } from '../stores'
-import { formatDate, formatNumber } from '../utils/formatters'
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
 
-const contentStore = useContentStore()
-const router = useRouter()
-const route = useRoute()
-const activeCategory = ref(0) // 0表示全部
-const activeType = ref(null) // null表示全部，'article'表示文章，'toolkit'表示工具包
-const loading = ref(false)
+// 推荐文章数据
+const recommendedArticles = ref([])
+const loading = ref(true)
 
-// 模拟分类数据
-const categories = ref([
-  { id: 0, name: '全部' },
-  { id: 1, name: '婴儿护理' },
-  { id: 2, name: '育儿知识' },
-  { id: 3, name: '营养辅食' },
-  { id: 4, name: '产后恢复' },
-  { id: 5, name: '亲子互动' },
-  { id: 6, name: '成长发育' }
-])
-
-// 页面加载时获取内容
-onMounted(async () => {
-  await loadContent()
-})
-
-// 每次进入页面时重新获取内容
-onActivated(async () => {
-  await loadContent()
-})
-
-// 加载内容的函数
-const loadContent = async () => {
-  loading.value = true
+// 获取推荐文章（获取最新发布的前3篇文章）
+const fetchRecommendedArticles = async () => {
   try {
-    await Promise.all([
-      contentStore.fetchLatestArticles(),
-      contentStore.fetchLatestToolkits()
-    ])
+    // 使用专门的最新文章接口
+    const token = localStorage.getItem('token')
+    console.log('开始获取推荐文章...')
+    const response = await axios.get('/api/articles/latest?limit=3', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
     
-    // 检查URL参数
-    if (route.query.category) {
-      if (route.query.category === 'article' || route.query.category === 'toolkit') {
-        activeType.value = route.query.category
-      }
+    console.log('API响应:', response.data)
+    
+    if (response.data && response.data.length > 0) {
+      // 映射文章数据，去除HTML标签获取纯文本摘要
+      recommendedArticles.value = response.data.map(article => ({
+        id: article.id,
+        title: article.title,
+        category: article.category,
+        summary: article.summary ? article.summary.replace(/<[^>]*>/g, '').substring(0, 80) + '...' : '',
+        created_at: article.created_at
+      }))
+      console.log('推荐文章数据:', recommendedArticles.value)
+    } else {
+      console.log('没有获取到推荐文章数据')
     }
   } catch (error) {
-    console.error('Failed to load content:', error)
+    console.error('获取推荐文章失败:', error)
+    console.error('错误详情:', error.response?.data || error.message)
   } finally {
     loading.value = false
+    console.log('加载状态:', loading.value)
   }
 }
 
-// 监听路由参数变化
-watch(() => route.query.category, (newCategory) => {
-  if (newCategory === 'article' || newCategory === 'toolkit') {
-    activeType.value = newCategory
-  } else {
-    activeType.value = null
-  }
+onMounted(() => {
+  fetchRecommendedArticles()
 })
-
-// 获取分类对应的图标
-const getCategoryIcon = (categoryName) => {
-  const iconMap = {
-    '全部': '🏠',
-    '婴儿护理': '👶',
-    '育儿知识': '📚',
-    '营养辅食': '🍼',
-    '产后恢复': '🤰',
-    '亲子互动': '👨‍👩‍👧',
-    '成长发育': '🌱'
-  }
-  return iconMap[categoryName] || '📖'
-}
-
-// 合并文章和工具包数据
-const allContent = computed(() => {
-  const articlesWithType = contentStore.articles.map(article => ({
-    ...article,
-    type: 'article',
-    category: article.category || '母婴育儿'
-  }))
-  
-  const toolkitsWithType = contentStore.toolkits.map(toolkit => ({
-    ...toolkit,
-    type: 'toolkit',
-    category: toolkit.category || '育儿工具'
-  }))
-  
-  return [...articlesWithType, ...toolkitsWithType]
-})
-
-// 筛选后的内容
-const filteredContent = computed(() => {
-  let filtered = allContent.value
-  
-  // 按类型筛选
-  if (activeType.value) {
-    filtered = filtered.filter(item => item.type === activeType.value)
-  }
-  
-  // 按分类筛选
-  if (activeCategory.value !== 0) {
-    // 根据分类ID筛选内容
-    const categoryMap = {
-      1: ['婴儿护理', '健康养生'],
-      2: ['育儿知识', '母婴育儿'],
-      3: ['营养辅食', '饮食营养'],
-      4: ['产后恢复'],
-      5: ['亲子互动'],
-      6: ['成长发育']
-    }
-    
-    const categoriesToShow = categoryMap[activeCategory.value] || []
-    filtered = filtered.filter(item => categoriesToShow.includes(item.category))
-  }
-  
-  return filtered
-})
-
-// 分类筛选
-const filterContent = (categoryId) => {
-  activeCategory.value = categoryId
-}
-
-// 加载更多内容
-const loadMoreContent = async () => {
-  // 这里可以实现分页加载逻辑
-  console.log('Load more content...')
-}
-
-// 测试点击事件
-const testClick = () => {
-  console.log('测试点击事件触发了！')
-  alert('测试点击事件触发了！')
-}
-
-// 测试路由跳转
-const testRouter = () => {
-  console.log('测试路由跳转...')
-  router.push('/about')
-}
-
-
-
-// 购买工具包
-const buyToolkit = async (item) => {
-  try {
-    console.log('=== 立即购买按钮点击事件开始 ===')
-    console.log('点击的商品：', item)
-    
-    // 检查商品数据完整性
-    if (!item || !item.id || !item.title) {
-      console.error('商品数据不完整：', item)
-      alert('商品数据不完整，请刷新页面后重试')
-      return
-    }
-    
-    // 直接跳转到支付页面，携带商品信息
-    router.push({
-      path: '/payment',
-      query: {
-        product_type: item.type,
-        product_id: item.id,
-        product_name: item.title,
-        price: item.price || 99.0
-      }
-    })
-    console.log('路由跳转命令已执行，跳转到支付页面')
-  } catch (error) {
-    console.error('=== 购买工具包时发生错误 ===')
-    console.error('错误类型：', typeof error)
-    console.error('错误消息：', error.message)
-    console.error('错误堆栈：', error.stack)
-    alert('购买失败：' + error.message)
-  }
-}
 </script>
 
 <style scoped>
 .home-view {
-  max-width: 100%;
-  position: relative;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 /* 母婴主题装饰 */
 .theme-decoration {
   display: flex;
   justify-content: center;
-  gap: 30px;
+  gap: 20px;
   margin-bottom: 20px;
-  animation: float 3s ease-in-out infinite;
 }
 
 .decoration-icon {
   font-size: 32px;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
-  transform: rotate(-10deg);
+  opacity: 0.7;
 }
 
-.decoration-icon:nth-child(2) {
-  font-size: 36px;
-  transform: rotate(0deg);
-  animation-delay: 0.5s;
-}
-
-.decoration-icon:nth-child(3) {
-  font-size: 30px;
-  transform: rotate(10deg);
-  animation-delay: 1s;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: var(--primary-color);
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.page-title::before,
-.page-title::after {
-  content: "🎀";
-  font-size: 20px;
-  color: var(--accent-color);
-}
-
+/* 页面副标题 */
 .page-subtitle {
-  font-size: 16px;
-  color: var(--text-secondary);
-  margin-bottom: 30px;
   text-align: center;
-  background-color: var(--bg-primary);
-  padding: 12px 20px;
-  border-radius: 20px;
-  display: inline-block;
-  margin-left: auto;
-  margin-right: auto;
-  box-shadow: var(--shadow-light);
-}
-
-/* 分类标签 */
-.category-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 30px;
-  justify-content: center;
-}
-
-.tab-btn {
-  padding: 10px 20px;
-  border: 2px solid var(--border-color);
-  background-color: var(--bg-primary);
-  border-radius: 25px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: var(--shadow-light);
-}
-
-.tab-btn:hover {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-medium);
-}
-
-.tab-btn.active {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-  box-shadow: var(--shadow-medium);
-}
-
-.tab-icon {
+  margin-bottom: 20px;
+  color: #666;
   font-size: 16px;
 }
 
-/* 内容列表 */
-.content-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 25px;
-  margin-bottom: 30px;
-}
-
-.content-card {
-  background-color: var(--bg-primary);
-  border-radius: 16px;
-  padding: 25px;
-  box-shadow: var(--shadow-medium);
-  transition: all 0.3s ease;
-  border-left: 5px solid var(--primary-color);
-  position: relative;
-  overflow: hidden;
-}
-
-.content-card::before {
-  content: "👶";
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  font-size: 24px;
-  opacity: 0.1;
-  transform: rotate(15deg);
-  pointer-events: none;
-}
-
-.content-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--shadow-large);
-}
-
-.content-card-toolkit {
-  border-left-color: var(--accent-color);
-  background-color: var(--bg-accent);
-}
-
-.content-card-toolkit::before {
-  content: "🎁";
-  font-size: 28px;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.card-category {
-  font-size: 12px;
-  color: var(--primary-color);
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background-color: var(--bg-secondary);
-  padding: 4px 10px;
-  border-radius: 12px;
-}
-
-.category-icon {
-  font-size: 14px;
-}
-
-.card-type {
-  font-size: 12px;
-  color: var(--text-secondary);
-  background-color: var(--bg-secondary);
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.card-title {
+.main-subtitle {
   font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 15px;
-  line-height: 1.5;
-  color: var(--text-primary);
+  font-weight: 500;
+  color: #333;
 }
 
-.card-title a {
-  color: var(--text-primary);
-  text-decoration: none;
-  transition: color 0.3s ease;
-}
-
-.card-title a:hover {
-  color: var(--primary-color);
-}
-
-.card-summary {
-  font-size: 14px;
-  line-height: 1.8;
-  color: var(--text-secondary);
-  margin-bottom: 20px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  background-color: var(--bg-secondary);
-  padding: 12px;
-  border-radius: 8px;
-}
-
-.card-meta {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-  font-size: 12px;
-  color: var(--text-light);
-  
-  .price {
-    color: var(--accent-color);
-    font-weight: 600;
-    font-size: 14px;
-  }
-
-  background-color: var(--bg-secondary);
-  padding: 10px;
-  border-radius: 8px;
-}
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.card-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 1rem;
-}
-
-.read-more-btn {
-  color: var(--primary-color);
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 8px 16px;
-  border-radius: 12px;
-  background-color: var(--bg-secondary);
-}
-
-.read-more-btn:hover {
-  color: white;
-  background-color: var(--primary-color);
-  transform: translateX(5px);
-}
-
-.buy-btn {
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-  padding: 10px 24px;
+/* 欢迎区域 */
+.welcome-section {
+  background: linear-gradient(135deg, #fff5f5 0%, #fff 100%);
   border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  padding: 60px 40px;
+  text-align: center;
+  margin-top: 30px;
+  box-shadow: 0 4px 20px rgba(255, 107, 139, 0.1);
+}
+
+.welcome-title {
+  font-size: 36px;
+  color: #333;
+  margin-bottom: 20px;
+  font-weight: 700;
+}
+
+.welcome-text {
+  font-size: 18px;
+  color: #666;
+  line-height: 1.8;
+  max-width: 800px;
+  margin: 0 auto 40px;
+}
+
+/* 功能导航 */
+.feature-nav {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex-wrap: wrap;
+}
+
+.feature-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  box-shadow: var(--shadow-medium);
+  gap: 20px;
+  background: white;
+  padding: 30px 40px;
+  border-radius: 16px;
+  text-decoration: none;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
 }
 
-.buy-btn:hover {
-  background-color: #FFC107;
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-medium);
+.feature-card:hover {
+  transform: translateY(-5px);
+  border-color: #FF6B8B;
+  box-shadow: 0 8px 25px rgba(255, 107, 139, 0.2);
 }
 
-/* 加载更多按钮 */
-.load-more {
-  text-align: center;
+.feature-icon {
+  font-size: 48px;
 }
 
-
-
-.load-more-btn {
-  padding: 0.75rem 2rem;
-  background-color: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: 25px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
+.feature-info h3 {
+  font-size: 20px;
+  color: #333;
+  margin-bottom: 5px;
+  font-weight: 600;
 }
 
-.load-more-btn:hover {
-  background-color: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-medium);
+.feature-info p {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
 }
 
 /* 响应式设计 */
-@media (max-width: 992px) {
-  .content-list {
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 20px;
+@media (max-width: 768px) {
+  .welcome-section {
+    padding: 40px 20px;
   }
   
-  .page-title {
-    font-size: 24px;
+  .welcome-title {
+    font-size: 28px;
   }
   
-  .page-title::before,
-  .page-title::after {
-    font-size: 18px;
-  }
-  
-  .card-title {
+  .welcome-text {
     font-size: 16px;
   }
   
-  .theme-decoration {
-    gap: 20px;
+  .feature-nav {
+    flex-direction: column;
+    align-items: center;
   }
   
-  .decoration-icon {
-    font-size: 28px;
+  .feature-card {
+    width: 100%;
+    max-width: 300px;
+    justify-content: center;
+  }
+}
+
+/* 分隔装饰 */
+.section-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin: 40px 0;
+}
+
+.divider-line {
+  flex: 1;
+  max-width: 200px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #FF6B8B, transparent);
+}
+
+.divider-icon {
+  font-size: 20px;
+  color: #FF6B8B;
+}
+
+/* 推荐文章区域 */
+.recommended-section {
+  background: linear-gradient(135deg, #fff5f5 0%, #fff 100%);
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(255, 107, 139, 0.1);
+}
+
+.recommended-title {
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 25px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.recommended-cards {
+  display: flex;
+  gap: 25px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.recommended-card {
+  flex: 1;
+  min-width: 280px;
+  max-width: 350px;
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  text-decoration: none;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recommended-card:hover {
+  transform: translateY(-8px);
+  border-color: #FF6B8B;
+  box-shadow: 0 8px 30px rgba(255, 107, 139, 0.2);
+}
+
+.recommended-category {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #FF6B8B;
+  font-weight: 500;
+}
+
+.recommended-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.recommended-summary {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.7;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  flex-grow: 1;
+}
+
+.read-more-text {
+  font-size: 14px;
+  color: #FF6B8B;
+  font-weight: 500;
+  margin-top: auto;
+  transition: all 0.3s ease;
+}
+
+.recommended-card:hover .read-more-text {
+  transform: translateX(5px);
+}
+
+.loading-recommended {
+  text-align: center;
+  padding: 40px 0;
+  color: #666;
+}
+
+/* 响应式 - 推荐卡片 */
+@media (max-width: 992px) {
+  .recommended-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .recommended-card {
+    width: 100%;
+    max-width: 500px;
   }
 }
 
 @media (max-width: 768px) {
-  .page-title {
-    font-size: 20px;
-    flex-direction: column;
-    gap: 8px;
+  .section-divider {
+    margin: 30px 0;
   }
   
-  .page-title::before,
-  .page-title::after {
-    content: "";
+  .divider-line {
+    max-width: 100px;
   }
   
-  .page-subtitle {
-    font-size: 14px;
-    padding: 10px 15px;
-    font-weight: 500;
+  .recommended-section {
+    padding: 30px 20px;
   }
-  
-  .category-tabs {
-    gap: 8px;
-  }
-  
-  .tab-btn {
-    padding: 8px 16px;
-    font-size: 13px;
-    gap: 6px;
-  }
-  
-  .content-list {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
-  
-  .content-card {
-    padding: 20px;
-  }
-  
-  .card-actions {
-    flex-direction: column;
-    gap: 15px;
-    align-items: stretch;
-  }
-  
-  .buy-btn {
-    justify-content: center;
-  }
-  
-  .theme-decoration {
-    gap: 15px;
-  }
-  
-  .decoration-icon {
-    font-size: 24px;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-title {
-    font-size: 18px;
-  }
-  
-  .page-subtitle {
-    font-size: 13px;
-  }
-  
-  .tab-btn {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
-  
-  .card-title {
-    font-size: 15px;
-  }
-  
-  .card-summary {
-    font-size: 13px;
-  }
-}
-
-/* 加载状态样式 */
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-  padding: 40px;
-}
-
-.loading-spinner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-}
-
-.spinner {
-  width: 50px;
-  height: 50px;
-  border: 4px solid var(--bg-secondary);
-  border-top: 4px solid var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.loading-spinner p {
-  font-size: 16px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-/* 空状态样式 */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  padding: 40px;
-  text-align: center;
-  background-color: var(--bg-primary);
-  border-radius: 16px;
-  box-shadow: var(--shadow-medium);
-  margin-bottom: 30px;
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  opacity: 0.2;
-}
-
-.empty-state h3 {
-  font-size: 20px;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.empty-state p {
-  font-size: 14px;
-  color: var(--text-secondary);
-  max-width: 400px;
 }
 </style>

@@ -75,25 +75,25 @@ onMounted(() => {
 })
 
 // 处理登录
-const handleLogin = async () => {
-  loading.value = true
-  error.value = ''
-  
-  try {
-    const success = await userStore.login(email.value, password.value)
-    if (success) {
-      // 登录成功，跳转到首页
-      router.push('/')
-    } else {
-      error.value = '邮箱或密码错误，请重试'
+  const handleLogin = async () => {
+    loading.value = true
+    error.value = ''
+    
+    try {
+      const result = await userStore.login(email.value, password.value)
+      if (result && result.access_token) {
+        // 登录成功，跳转到首页
+        router.push('/')
+      } else {
+        error.value = userStore.error || '邮箱或密码错误，请重试'
+      }
+    } catch (err) {
+      error.value = userStore.error || '登录失败，请检查网络连接或稍后重试'
+      console.error('登录错误:', err)
+    } finally {
+      loading.value = false
     }
-  } catch (err) {
-    error.value = '登录失败，请检查网络连接或稍后重试'
-    console.error('登录错误:', err)
-  } finally {
-    loading.value = false
   }
-}
 
 // 忘记密码
 const forgotPassword = () => {

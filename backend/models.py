@@ -1,7 +1,7 @@
 # 数据库模型定义文件
 # 包含用户认证和内容管理所需的数据模型
 
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Date, func, ForeignKey, DECIMAL
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Date, func, ForeignKey, DECIMAL, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base  # 从database模块导入Base，确保使用同一个实例
@@ -48,6 +48,7 @@ class Content(Base):
     author_id = Column(Integer, ForeignKey("users.id"), index=True, comment="作者ID")
     is_published = Column(Boolean, default=False, index=True, comment="是否发布")
     view_count = Column(Integer, default=0, comment="浏览量")
+    likes = Column(Integer, default=0, comment="点赞数")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True, comment="创建时间")
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
     published_at = Column(DateTime(timezone=True), nullable=True, index=True, comment="发布时间")
@@ -154,3 +155,41 @@ class AffiliateCommission(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
     paid_at = Column(DateTime(timezone=True), nullable=True, comment="结算时间")
     cancelled_at = Column(DateTime(timezone=True), nullable=True, comment="取消时间")
+
+
+class Favorite(Base):
+    """
+    收藏模型
+    用于记录用户收藏的文章
+    """
+    __tablename__ = "favorites"
+    
+    id = Column(Integer, primary_key=True, index=True, comment="收藏记录ID")
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False, comment="用户ID")
+    content_id = Column(Integer, ForeignKey("contents.id"), index=True, nullable=False, comment="内容ID")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True, comment="收藏时间")
+    
+    # 联合唯一索引，防止重复收藏
+    __table_args__ = (
+        UniqueConstraint("user_id", "content_id", name="uq_user_content_favorite"),
+        {"comment": "用户收藏表，记录用户收藏的文章"},
+    )
+
+
+class Like(Base):
+    """
+    点赞模型
+    用于记录用户点赞的文章，实现用户独立的点赞状态
+    """
+    __tablename__ = "likes"
+    
+    id = Column(Integer, primary_key=True, index=True, comment="点赞记录ID")
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False, comment="用户ID")
+    content_id = Column(Integer, ForeignKey("contents.id"), index=True, nullable=False, comment="内容ID")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True, comment="点赞时间")
+    
+    # 联合唯一索引，防止重复点赞
+    __table_args__ = (
+        UniqueConstraint("user_id", "content_id", name="uq_user_content_like"),
+        {"comment": "用户点赞表，记录用户点赞的文章，实现用户独立的点赞状态"},
+    )

@@ -1,0 +1,76 @@
+services:
+  # PostgreSQL数据库服务
+  website_postgres:
+    image: postgres:15-alpine
+    container_name: website_postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=vertical_website
+      - POSTGRES_USER=vertical_user
+      - POSTGRES_PASSWORD=pg123456  # 生产环境请使用强密码
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - project-website_backend-net
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vertical_user -d vertical_website"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis服务
+  website_redis:
+    image: redis:7-alpine
+    container_name: website_redis
+    restart: always
+    environment:
+      - REDIS_PASSWORD=redis123456  # Redis密码
+    volumes:
+      - redis_data:/data
+    networks:
+      - project-website_backend-net
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis123456
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a redis123456 ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 后端服务
+  website_backend:
+    image: registry.cn-hangzhou.aliyuncs.com/meta-jiujiu/website_backend:test_1 
+    container_name: website_backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://vertical_user:pg123456@website_postgres:5432/vertical_website
+      - REDIS_URL=redis://:redis123456@website_redis:6379/0
+      - SECRET_KEY=your_production_secret_key  # 生产环境请使用强密钥
+      - DEBUG=False
+      - APP_ENV=production
+    depends_on:
+      website_postgres:
+        condition: service_healthy
+      website_redis:
+        condition: service_healthy
+    networks:
+      - project-website_backend-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.website_backend.rule=Host(`backend.quzhinan.cn`)"
+      - "traefik.http.routers.website_backend.entrypoints=web"
+      - "traefik.http.services.website_backend.loadbalancer.server.port=8000"
+
+volumes:
+  postgres_data:
+    name: vertical_website_postgres_data
+  redis_data:
+    name: vertical_website_redis_data
+
+networks:
+  project-website_backend-net:
+    name: project-website_backend-net
+    external: true

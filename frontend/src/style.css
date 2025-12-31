@@ -21,6 +21,7 @@
   --border-color: #E8E8E8; /* 边框颜色 */
   --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.08); /* 轻微阴影 */
   --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.12); /* 中等阴影 */
+  --shadow-large: 0 8px 24px rgba(0, 0, 0, 0.16); /* 大型阴影 */
   
   color-scheme: light;
   color: var(--text-primary);

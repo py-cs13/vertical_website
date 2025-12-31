@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>测试v-html指令</title>
+  <script src="https://unpkg.com/vue@3"></script>
+</head>
+<body>
+  <div id="app">
+    <h2>测试v-html指令</h2>
+    <div v-html="testContent"></div>
+    <button @click="updateContent">更新内容</button>
+    <button @click="fetchApi">获取API数据</button>
+  </div>
+
+  <script>
+    const { createApp, ref } = Vue;
+
+    createApp({
+      setup() {
+        const testContent = ref('<h3>测试HTML内容</h3><p>这是一个段落</p><ul><li>列表项1</li><li>列表项2</li></ul>');
+
+        const updateContent = () => {
+          testContent.value = '<h4>更新后的内容</h4><p>这是更新后的段落</p><ol><li>有序列表项1</li><li>有序列表项2</li></ol>';
+        };
+
+        const fetchApi = async () => {
+          try {
+            const response = await fetch('http://localhost:8000/api/content/74');
+            const data = await response.json();
+            console.log('API响应:', data);
+            console.log('Content类型:', typeof data.content);
+            console.log('Content长度:', data.content.length);
+            console.log('Content预览:', data.content.substring(0, 200));
+            testContent.value = data.content;
+          } catch (error) {
+            console.error('获取API数据失败:', error);
+          }
+        };
+
+        return {
+          testContent,
+          updateContent,
+          fetchApi
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

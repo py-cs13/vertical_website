@@ -5,8 +5,8 @@ import json
 url = "http://localhost:8000/api/auth/register"
 headers = {"Content-Type": "application/json"}
 data = {
-    "username": "testuser2",
-    "email": "test2@example.com",
+    "username": "testuser_new",
+    "email": "test_new@example.com",
     "password": "Password123!"  # 包含大写字母和特殊字符
 }
 

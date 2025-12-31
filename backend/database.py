@@ -19,9 +19,13 @@ Base = declarative_base()
 logger.info("数据库模型基类创建成功")
 
 # 数据库连接字符串
-# 使用配置文件中的设置
-DATABASE_URL = settings.DATABASE_URL
-logger.info(f"数据库连接URL: {DATABASE_URL}")
+# 根据TESTING环境选择数据库
+if settings.TESTING:
+    DATABASE_URL = settings.TEST_DATABASE_URL
+    logger.info(f"⚠️  正在使用测试数据库: {DATABASE_URL}")
+else:
+    DATABASE_URL = settings.DATABASE_URL
+    logger.info(f"✅ 正在使用生产数据库: {DATABASE_URL}")
 
 # 创建SQLAlchemy引擎
 # 引擎是与数据库通信的核心接口

@@ -14,9 +14,11 @@ load_dotenv()
 
 # 配置
 BASE_URL = "http://localhost:8000"
-USERNAME = "testuser"
-EMAIL = "test@example.com"
-PASSWORD = "Testpassword123!"
+import os
+# 生成唯一的测试邮箱和用户名
+USERNAME = f"testuser_{os.urandom(4).hex()}"
+EMAIL = f"test_{os.urandom(4).hex()}@example.com"
+PASSWORD = "Password123!"  # 包含大写字母和特殊字符
 
 
 class ToolkitDownloadTest:
@@ -65,7 +67,8 @@ class ToolkitDownloadTest:
             data = response.json()
             self.test_user_id = data["id"]
             print(f"✓ 注册成功，用户ID: {self.test_user_id}")
-            return True
+            # 注册成功后调用登录方法获取访问令牌
+            return self.login(EMAIL, PASSWORD)
         elif response.status_code == 409:
             print(f"✓ 用户已存在，使用现有用户登录")
             return self.login(EMAIL, PASSWORD)
@@ -151,7 +154,17 @@ class ToolkitDownloadTest:
             # 获取文件名
             content_disposition = response.headers.get("content-disposition")
             if content_disposition:
-                filename = content_disposition.split("filename=")[1].strip('"')
+                # 尝试从content-disposition头部提取文件名
+                if 'filename*=' in content_disposition:
+                    # 处理RFC 5987编码的文件名
+                    filename_part = content_disposition.split('filename*=UTF-8\'\'')[1]
+                    from urllib.parse import unquote
+                    filename = unquote(filename_part)
+                elif 'filename=' in content_disposition:
+                    # 处理普通的filename参数
+                    filename = content_disposition.split("filename=")[1].strip('"')
+                else:
+                    filename = f"toolkit_{toolkit_id}.pdf"
             else:
                 filename = f"toolkit_{toolkit_id}.pdf"
             

@@ -76,6 +76,11 @@ class TestPaymentSystem(unittest.TestCase):
     
     def setUp(self):
         """测试前的准备工作"""
+        # 确保只在测试环境使用测试数据库
+        from config import settings
+        if not settings.TESTING:
+            raise RuntimeError("测试脚本只能在TESTING=True的环境下运行")
+        
         # 创建测试数据库表
         Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
@@ -93,6 +98,11 @@ class TestPaymentSystem(unittest.TestCase):
     
     def tearDown(self):
         """测试后的清理工作"""
+        # 确保只在测试环境使用测试数据库
+        from config import settings
+        if not settings.TESTING:
+            raise RuntimeError("测试脚本只能在TESTING=True的环境下运行")
+        
         # 删除测试数据库表
         Base.metadata.drop_all(bind=engine)
         self.db.close()

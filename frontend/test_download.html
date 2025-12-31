@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>下载功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .log {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>下载功能测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 检查localStorage</h2>
+        <button onclick="checkLocalStorage()">检查localStorage</button>
+        <div id="localStorageLog" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. 测试API调用</h2>
+        <label for="productId">产品ID:</label>
+        <input type="number" id="productId" value="1">
+        <button onclick="testApiCall()">测试API调用</button>
+        <div id="apiLog" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. 测试下载功能</h2>
+        <label for="downloadId">下载ID:</label>
+        <input type="number" id="downloadId" value="1">
+        <button onclick="testDownload()">测试下载</button>
+        <div id="downloadLog" class="log"></div>
+    </div>
+
+    <script>
+        // 日志函数
+        function log(message, type = 'info', logElement) {
+            const logDiv = document.getElementById(logElement);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : '';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        // 检查localStorage
+        function checkLocalStorage() {
+            const logElement = 'localStorageLog';
+            log('检查localStorage...', 'info', logElement);
+            
+            const user = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
+            
+            log(`localStorage中的user: ${user ? '存在' : '不存在'}`, 'info', logElement);
+            if (user) {
+                try {
+                    const userObj = JSON.parse(user);
+                    log(`用户ID: ${userObj.id}`, 'info', logElement);
+                    log(`用户名: ${userObj.nickname}`, 'info', logElement);
+                } catch (e) {
+                    log('user不是有效的JSON', 'error', logElement);
+                }
+            }
+            
+            log(`localStorage中的token: ${token ? '存在' : '不存在'}`, 'info', logElement);
+            if (token) {
+                log(`token长度: ${token.length}`, 'info', logElement);
+                log(`token前20位: ${token.substring(0, 20)}...`, 'info', logElement);
+            }
+        }
+        
+        // 测试API调用
+        async function testApiCall() {
+            const logElement = 'apiLog';
+            log('开始API调用测试...', 'info', logElement);
+            
+            const productId = document.getElementById('productId').value;
+            const url = `/api/toolkits/${productId}/download`;
+            const token = localStorage.getItem('token');
+            
+            log(`测试URL: ${url}`, 'info', logElement);
+            log(`使用token: ${token ? '是' : '否'}`, 'info', logElement);
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
+                    },
+                });
+                
+                log(`响应状态: ${response.status}`, 'info', logElement);
+                log(`响应状态文本: ${response.statusText}`, 'info', logElement);
+                
+                if (response.status === 200) {
+                    log('API调用成功!', 'success', logElement);
+                } else {
+                    log(`API调用失败: ${response.status}`, 'error', logElement);
+                    const errorText = await response.text();
+                    log(`错误详情: ${errorText}`, 'error', logElement);
+                }
+            } catch (error) {
+                log(`请求异常: ${error.message}`, 'error', logElement);
+            }
+        }
+        
+        // 测试下载功能
+        async function testDownload() {
+            const logElement = 'downloadLog';
+            log('开始下载测试...', 'info', logElement);
+            
+            const productId = document.getElementById('downloadId').value;
+            const url = `/api/toolkits/${productId}/download`;
+            const token = localStorage.getItem('token');
+            
+            log(`下载URL: ${url}`, 'info', logElement);
+            log(`使用token: ${token ? '是' : '否'}`, 'info', logElement);
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
+                    },
+                });
+                
+                log(`响应状态: ${response.status}`, 'info', logElement);
+                
+                if (response.status === 200) {
+                    log('下载请求成功!', 'success', logElement);
+                    
+                    // 获取文件名
+                    const contentDisposition = response.headers.get('content-disposition');
+                    let filename = 'toolkit.pdf';
+                    if (contentDisposition) {
+                        const match = contentDisposition.match(/filename="(.*)"/);
+                        if (match && match[1]) {
+                            filename = match[1];
+                        }
+                    }
+                    log(`文件名: ${filename}`, 'info', logElement);
+                    
+                    // 处理下载
+                    const blob = await response.blob();
+                    const objectURL = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = objectURL;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(objectURL);
+                    
+                    log('文件下载完成!', 'success', logElement);
+                } else {
+                    log(`下载失败: ${response.status}`, 'error', logElement);
+                    const errorText = await response.text();
+                    log(`错误详情: ${errorText}`, 'error', logElement);
+                }
+            } catch (error) {
+                log(`下载异常: ${error.message}`, 'error', logElement);
+            }
+        }
+    </script>
+</body>
+</html>

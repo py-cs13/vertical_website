@@ -6,6 +6,9 @@ logger = get_logger(__name__)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.encoders import jsonable_encoder
+from pydantic.json import custom_pydantic_encoder
+import json
 from contextlib import asynccontextmanager
 import logging
 from fastapi_csrf_protect import CsrfProtect
@@ -69,6 +72,7 @@ if not is_test:
 from database import Base, engine
 import models  # 导入模型，确保表能被创建
 from routes import router
+from agent_routes import router as agent_router
 
 # 创建数据库表
 @asynccontextmanager
@@ -112,7 +116,8 @@ app = FastAPI(
     title=settings.APP_NAME,
     description="提供内容管理、用户认证和商业化功能的API",
     version=settings.APP_VERSION,
-    lifespan=lifespan  # 添加生命周期管理
+    lifespan=lifespan,  # 添加生命周期管理
+    json_encoder=jsonable_encoder
 )
 
 # 创建静态文件目录
@@ -174,6 +179,7 @@ async def root():
 
 # 包含路由
 app.include_router(router)
+app.include_router(agent_router)
 
 if __name__ == "__main__":
     import uvicorn

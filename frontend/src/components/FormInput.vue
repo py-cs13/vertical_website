@@ -44,7 +44,7 @@ const props = defineProps({
   },
   // 绑定的值
   modelValue: {
-    type: [String, Number, Date],
+    type: [String, Number, Date, null],
     default: ''
   },
   // 标签文本

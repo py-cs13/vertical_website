@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HTML转义测试</title>
+</head>
+<body>
+    <h1>HTML转义测试</h1>
+    <div id="app"></div>
+
+    <script>
+        // 模拟API返回的内容
+        const escapedContent = '&lt;h3&gt;测试标题&lt;/h3&gt;&lt;p&gt;这是测试段落&lt;/p&gt;';
+        const unescapedContent = '<h3>测试标题</h3><p>这是测试段落</p>';
+
+        // 创建两个div来对比显示
+        const app = document.getElementById('app');
+        
+        const escapedDiv = document.createElement('div');
+        escapedDiv.innerHTML = escapedContent;
+        escapedDiv.style.marginBottom = '20px';
+        escapedDiv.innerHTML = '<h2>转义内容 (innerHTML显示):</h2>' + escapedContent;
+        
+        const unescapedDiv = document.createElement('div');
+        unescapedDiv.innerHTML = '<h2>未转义内容 (innerHTML显示):</h2>' + unescapedContent;
+        
+        app.appendChild(escapedDiv);
+        app.appendChild(unescapedDiv);
+
+        // 输出到控制台以便查看
+        console.log('转义内容:', escapedContent);
+        console.log('未转义内容:', unescapedContent);
+        console.log('转义内容长度:', escapedContent.length);
+        console.log('未转义内容长度:', unescapedContent.length);
+    </script>
+</body>
+</html>

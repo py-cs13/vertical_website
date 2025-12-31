@@ -2,7 +2,7 @@ import axios from 'axios'
 import Swal from 'sweetalert2'
 
 // 创建axios实例
-const apiClient = axios.create({
+export const apiClient = axios.create({
   baseURL: '/api',
   timeout: 10000,
   headers: {
@@ -31,6 +31,15 @@ apiClient.interceptors.response.use(
     return response
   },
   (error) => {
+    // 处理401错误（未授权）
+    if (error.response && error.response.status === 401) {
+      // 清除本地存储的认证信息
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+      // 跳转到登录页面
+      window.location.href = '/login'
+      Swal.fire('登录已过期', '请重新登录', 'warning')
+    }
     // 处理403错误（权限不足）
     if (error.response && error.response.status === 403) {
       Swal.fire('权限不足', '您没有足够的权限执行此操作', 'error')
@@ -52,10 +61,13 @@ export const getArticles = async (params = {}) => {
   }
 }
 
+// 获取管理后台文章列表（别名）
+export const getAdminArticles = getArticles
+
 // 获取文章详情
 export const getArticleDetail = async (id) => {
   try {
-    const response = await apiClient.get(`/admin/articles/${id}`)
+    const response = await apiClient.get(`/content/${id}`)
     return response.data
   } catch (error) {
     console.error(`获取文章详情失败 (ID: ${id}):`, error)
@@ -103,74 +115,6 @@ export const batchDeleteArticles = async (ids) => {
     return response.data
   } catch (error) {
     console.error('批量删除文章失败:', error)
-    throw error
-  }
-}
-
-// ========================= 工具包管理API =========================
-
-// 获取工具包列表
-export const getToolkits = async (params = {}) => {
-  try {
-    const response = await apiClient.get('/admin/toolkits', { params })
-    return response.data
-  } catch (error) {
-    console.error('获取工具包列表失败:', error)
-    throw error
-  }
-}
-
-// 获取工具包详情
-export const getToolkitDetail = async (id) => {
-  try {
-    const response = await apiClient.get(`/admin/toolkits/${id}`)
-    return response.data
-  } catch (error) {
-    console.error(`获取工具包详情失败 (ID: ${id}):`, error)
-    throw error
-  }
-}
-
-// 创建工具包
-export const createToolkit = async (toolkitData) => {
-  try {
-    const response = await apiClient.post('/admin/toolkits', toolkitData)
-    return response.data
-  } catch (error) {
-    console.error('创建工具包失败:', error)
-    throw error
-  }
-}
-
-// 更新工具包
-export const updateToolkit = async (id, toolkitData) => {
-  try {
-    const response = await apiClient.put(`/admin/toolkits/${id}`, toolkitData)
-    return response.data
-  } catch (error) {
-    console.error(`更新工具包失败 (ID: ${id}):`, error)
-    throw error
-  }
-}
-
-// 删除工具包
-export const deleteToolkit = async (id) => {
-  try {
-    const response = await apiClient.delete(`/admin/toolkits/${id}`)
-    return response.data
-  } catch (error) {
-    console.error(`删除工具包失败 (ID: ${id}):`, error)
-    throw error
-  }
-}
-
-// 批量删除工具包
-export const batchDeleteToolkits = async (ids) => {
-  try {
-    const response = await apiClient.delete('/admin/toolkits', { data: { ids } })
-    return response.data
-  } catch (error) {
-    console.error('批量删除工具包失败:', error)
     throw error
   }
 }
@@ -245,6 +189,17 @@ export const batchDeleteUsers = async (ids) => {
 
 // ========================= 订单管理API =========================
 
+// 创建订单
+export const createOrder = async (orderData) => {
+  try {
+    const response = await apiClient.post('/orders', orderData)
+    return response.data
+  } catch (error) {
+    console.error('创建订单失败:', error)
+    throw error
+  }
+}
+
 // 获取订单列表
 export const getOrders = async (params = {}) => {
   try {
@@ -252,6 +207,17 @@ export const getOrders = async (params = {}) => {
     return response.data
   } catch (error) {
     console.error('获取订单列表失败:', error)
+    throw error
+  }
+}
+
+// 支付订单
+export const payOrder = async (orderId, paymentData) => {
+  try {
+    const response = await apiClient.post(`/orders/${orderId}/pay`, paymentData)
+    return response.data
+  } catch (error) {
+    console.error('支付订单失败:', error)
     throw error
   }
 }
@@ -360,4 +326,18 @@ export const exportAffiliateStats = async (params = {}) => {
   }
 }
 
+// ========================= 智能体API =========================
+
+// 下载智能体
+export const downloadAgent = async (agentId) => {
+  try {
+    const response = await apiClient.get(`/agents/${agentId}/download`, {
+      responseType: 'blob'
+    })
+    return response
+  } catch (error) {
+    console.error(`下载智能体失败 (ID: ${agentId}):`, error)
+    throw error
+  }
+}
 export default apiClient

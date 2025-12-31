@@ -35,7 +35,7 @@
           <div class="user-name">{{ user.username }}</div>
           <div class="user-email">{{ user.email }}</div>
           <div class="user-badge" v-if="user.babyName">
-            👶 {{ user.babyName }} 的妈妈
+            👶 {{ user.babyName }} 的{{ user.gender === 'male' ? '爸爸' : '妈妈' }}
           </div>
         </div>
         
@@ -51,16 +51,13 @@
                 <i class="icon">👶</i> 宝宝信息
               </a>
             </li>
-            <li class="nav-item" :class="{ active: activeTab === 'content' }">
+            <!-- 我的内容标签 - 第一版隐藏 -->
+            <li class="nav-item" :class="{ active: activeTab === 'content' }" v-if="false">
               <a href="#" @click.prevent="switchTab('content')">
                 <i class="icon">📝</i> 我的内容
               </a>
             </li>
-            <li class="nav-item" :class="{ active: activeTab === 'purchases' }">
-              <a href="#" @click.prevent="switchTab('purchases')">
-                <i class="icon">🛒</i> 我的购买
-              </a>
-            </li>
+
             <li class="nav-item" :class="{ active: activeTab === 'favorites' }">
               <a href="#" @click.prevent="switchTab('favorites')">
                 <i class="icon">❤️</i> 我的收藏
@@ -71,7 +68,8 @@
                 <i class="icon">📣</i> 联盟推广
               </a>
             </li>
-            <li class="nav-item" :class="{ active: activeTab === 'settings' }">
+            <!-- 账户设置标签 - 第一版隐藏 -->
+            <li class="nav-item" :class="{ active: activeTab === 'settings' }" v-if="false">
               <a href="#" @click.prevent="switchTab('settings')">
                 <i class="icon">⚙️</i> 账户设置
               </a>
@@ -87,7 +85,7 @@
           <h2 class="tab-title">
             <span class="title-icon">👤</span> 个人信息
           </h2>
-          <form class="profile-form" novalidate>
+          <form class="profile-form" novalidate @submit.prevent>
             <div class="form-group">
               <FormInput
                 id="username"
@@ -145,7 +143,7 @@
           <h2 class="tab-title">
             <span class="title-icon">👶</span> 宝宝信息
           </h2>
-          <form class="baby-form">
+          <form class="baby-form" novalidate @submit.prevent>
             <div class="form-group">
               <FormInput
                 id="babyName"
@@ -187,8 +185,8 @@
           </form>
         </div>
         
-        <!-- 我的内容 -->
-        <div v-if="activeTab === 'content'" class="tab-content">
+        <!-- 我的内容 - 第一版隐藏 -->
+        <div v-if="activeTab === 'content' && false" class="tab-content">
           <h2 class="tab-title">
             <span class="title-icon">📝</span> 我的内容
           </h2>
@@ -230,35 +228,7 @@
           </div>
         </div>
         
-        <!-- 我的购买 -->
-        <div v-if="activeTab === 'purchases'" class="tab-content">
-          <h2 class="tab-title">
-            <span class="title-icon">🛒</span> 我的购买
-          </h2>
-          <div class="purchases-list">
-            <div class="empty-state" v-if="purchases.length === 0">
-              <i class="icon">🛒</i>
-              <p>您还没有购买任何育儿课程或工具包</p>
-            </div>
-            <div 
-              v-for="item in purchases" 
-              :key="item.id" 
-              class="purchase-item"
-            >
-              <div class="purchase-item-info">
-                <h3 class="purchase-item-title">{{ item.title }}</h3>
-                <p class="purchase-item-meta">
-                  <span>购买时间: {{ item.purchase_date }}</span>
-                  <span>价格: ¥{{ item.price }}</span>
-                </p>
-              </div>
-              <div class="purchase-item-actions">
-                <Button variant="primary" size="small" class="view-btn" @click="viewPurchase(item)">查看</Button>
-                <Button variant="success" size="small" class="download-btn" @click="downloadPurchase(item)">下载</Button>
-              </div>
-            </div>
-          </div>
-        </div>
+
         
         <!-- 我的收藏 -->
         <div v-if="activeTab === 'favorites'" class="tab-content">
@@ -266,34 +236,55 @@
             <span class="title-icon">❤️</span> 我的收藏
           </h2>
           <div class="favorites-list">
-            <div class="empty-state" v-if="favorites.length === 0">
+            <div v-if="favoritesLoading" class="loading-state">
+              <p>加载中...</p>
+            </div>
+            <div class="empty-state" v-else-if="favorites.length === 0">
               <i class="icon">❤️</i>
               <p>您还没有收藏任何育儿内容</p>
             </div>
             <div 
-              v-for="item in favorites" 
+              v-for="(item, index) in favorites" 
               :key="item.id" 
               class="favorite-item"
             >
               <div class="favorite-item-info">
-                <h3 class="favorite-item-title">{{ item.title }}</h3>
-                <p class="favorite-item-meta">{{ formatDate(item.created_at) }}</p>
+                <h3 class="favorite-item-title">
+                  <router-link 
+                    :to="item.category === 'agent' ? `/agent/${item.content_id}` : `/article/${item.content_id}`"
+                    class="favorite-title-link"
+                  >
+                    {{ item.title }}
+                  </router-link>
+                </h3>
+                <p class="favorite-item-summary">{{ item.summary || '暂无摘要' }}</p>
+                <div class="favorite-item-meta-row">
+                  <span class="favorite-category">{{ item.category }}</span>
+                  <span class="favorite-date">{{ formatDate(item.created_at) }}</span>
+                </div>
               </div>
               <div class="favorite-item-actions">
-                <Button variant="danger" size="small" class="remove-btn">取消收藏</Button>
+                <Button 
+                  variant="danger" 
+                  size="small" 
+                  class="remove-btn"
+                  @click="removeFavorite(item.content_id, index)"
+                >
+                  💔 取消收藏
+                </Button>
               </div>
             </div>
           </div>
         </div>
         
-        <!-- 账户设置 -->
-        <div v-if="activeTab === 'settings'" class="tab-content">
+        <!-- 账户设置 - 第一版隐藏 -->
+        <div v-if="activeTab === 'settings' && false" class="tab-content">
           <h2 class="tab-title">
             <span class="title-icon">⚙️</span> 账户设置
           </h2>
           <div class="settings-section">
             <h3 class="section-title">密码设置</h3>
-            <form class="password-form">
+            <form class="password-form" novalidate @submit.prevent>
               <div class="form-group">
                 <FormInput
                   id="old-password"
@@ -474,11 +465,13 @@ async function loadUserData() {
 // 组件挂载时加载用户数据
 onMounted(async () => {
   await loadUserData()
+  await loadFavorites()
 })
 
 // 组件激活时重新加载用户数据（用于路由切换返回时）
 onActivated(async () => {
   await loadUserData()
+  await loadFavorites()
 })
 
 // 移除自动监听userStore.user变化的逻辑，避免页面抖动
@@ -564,7 +557,7 @@ async function saveBabyInfo() {
 // 内容标签
 const contentTabs = [
   { value: 'articles', label: '我的文章' },
-  { value: 'toolkits', label: '我的工具包' }
+  { value: 'agents', label: '我的智能体' }
 ]
 
 // 用户内容
@@ -574,18 +567,57 @@ const userContents = ref([
   { id: 3, title: '新生儿睡眠习惯培养', created_at: '2024-05-20', status: 'published' }
 ])
 
-// 购买记录
-const purchases = ref([
-  { id: 1, title: '科学育儿课程（0-1岁）', purchase_date: '2024-05-05', price: 99.0 },
-  { id: 2, title: '宝宝辅食食谱工具包', purchase_date: '2024-04-20', price: 19.9 }
-])
+
 
 // 收藏列表
-const favorites = ref([
-  { id: 1, title: '新生儿护理的10个关键要点', created_at: '2024-05-12' },
-  { id: 2, title: '亲子互动游戏推荐（0-1岁）', created_at: '2024-05-15' },
-  { id: 3, title: '产后恢复的正确方法', created_at: '2024-05-20' }
-])
+const favorites = ref([])
+const favoritesLoading = ref(false)
+
+// 从API获取收藏列表
+async function loadFavorites() {
+  if (!userStore.token) {
+    favorites.value = []
+    return
+  }
+  
+  favoritesLoading.value = true
+  try {
+    const response = await apiClient.get('/users/me/favorites')
+    if (response.data && response.data.data) {
+      favorites.value = response.data.data.map(fav => ({
+        id: fav.content_id,
+        title: fav.content ? fav.content.title : '未知标题',
+        summary: fav.content ? fav.content.summary : '',
+        category: fav.content ? fav.content.category : '未分类',
+        created_at: fav.created_at,
+        content_id: fav.content_id
+      }))
+    }
+  } catch (error) {
+    console.error('获取收藏列表失败:', error)
+    favorites.value = []
+  } finally {
+    favoritesLoading.value = false
+  }
+}
+
+// 取消收藏
+const removeFavorite = async (contentId, index) => {
+  if (!userStore.token) {
+    alert('请先登录')
+    return
+  }
+  
+  try {
+    await apiClient.post(`/content/${contentId}/collect`)
+    
+    // 从列表中移除
+    favorites.value.splice(index, 1)
+  } catch (error) {
+    console.error('取消收藏失败:', error)
+    alert(error.response?.data?.detail || '取消收藏失败，请稍后重试')
+  }
+}
 
 // 通知设置
 const notificationSettings = ref({
@@ -594,20 +626,7 @@ const notificationSettings = ref({
   marketing: true
 })
 
-// 查看购买详情
-const viewPurchase = (item) => {
-  console.log('查看购买详情:', item)
-  // 这里可以打开详情模态框或跳转到详情页面
-  alert(`查看购买详情：${item.title}`)
-}
 
-// 下载购买的工具包
-const downloadPurchase = (item) => {
-  console.log('下载购买的工具包:', item)
-  // 这里应该调用后端API获取下载链接
-  alert(`下载：${item.title}`)
-  // 示例：window.open(`/api/download/${item.id}`, '_blank')
-}
 
 // 显示联盟推广弹窗
 const showAffiliateAlert = () => {
@@ -1090,8 +1109,7 @@ const switchTab = (tab) => {
 }
 
 .user-content-item,
-.purchase-item,
-.favorite-item {
+.purchase-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1104,21 +1122,18 @@ const switchTab = (tab) => {
 }
 
 .user-content-item:hover,
-.purchase-item:hover,
-.favorite-item:hover {
+.purchase-item:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-medium);
 }
 
 .user-content-item:last-child,
-.purchase-item:last-child,
-.favorite-item:last-child {
+.purchase-item:last-child {
   margin-bottom: 0;
 }
 
 .content-item-title,
-.purchase-item-title,
-.favorite-item-title {
+.purchase-item-title {
   font-size: 16px;
   font-weight: 500;
   color: var(--text-primary);
@@ -1127,8 +1142,7 @@ const switchTab = (tab) => {
 }
 
 .content-item-meta,
-.purchase-item-meta,
-.favorite-item-meta {
+.purchase-item-meta {
   font-size: 14px;
   color: var(--text-light);
 }
@@ -1143,16 +1157,14 @@ const switchTab = (tab) => {
 }
 
 .content-item-actions,
-.purchase-item-actions,
-.favorite-item-actions {
+.purchase-item-actions {
   display: flex;
   gap: 10px;
 }
 
 .edit-btn,
 .delete-btn,
-.view-btn,
-.remove-btn {
+.view-btn {
   padding: 8px 15px;
   border-radius: 10px;
   font-size: 13px;
@@ -1177,31 +1189,176 @@ const switchTab = (tab) => {
 }
 
 .delete-btn,
-.remove-btn {
+.view-btn {
   border: 2px solid var(--accent-color);
   background-color: white;
   color: var(--accent-color);
 }
 
 .delete-btn:hover,
-.remove-btn:hover {
+.view-btn:hover {
   background-color: var(--accent-color);
   color: white;
   transform: translateY(-2px);
   box-shadow: var(--shadow-medium);
 }
 
-.view-btn {
-  border: 2px solid var(--secondary-color);
-  background-color: white;
-  color: var(--secondary-color);
+/* 收藏列表样式 - 增强版 */
+.favorites-list {
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 8px;
 }
 
-.view-btn:hover {
-  background-color: var(--secondary-color);
+.favorites-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.favorites-list::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 3px;
+}
+
+.favorites-list::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 3px;
+}
+
+.favorite-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24px;
+  border-bottom: 2px solid var(--border-color);
+  background-color: var(--bg-primary);
+  border-radius: 16px;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+  gap: 20px;
+}
+
+.favorite-item:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-medium);
+  border-color: var(--primary-color);
+}
+
+.favorite-item:last-child {
+  margin-bottom: 0;
+}
+
+.favorite-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.favorite-item-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.favorite-title-link {
+  color: inherit;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.favorite-title-link::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: var(--primary-color);
+  transition: width 0.3s ease;
+}
+
+.favorite-title-link:hover {
+  color: var(--primary-color);
+}
+
+.favorite-title-link:hover::after {
+  width: 100%;
+}
+
+.favorite-item-summary {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  opacity: 0.8;
+}
+
+.favorite-item-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.favorite-category {
+  background: linear-gradient(135deg, #f87171 0%, #fb7185 100%);
+  color: white;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.favorite-date {
+  font-size: 13px;
+  color: var(--text-light);
+  padding: 6px 0;
+}
+
+.favorite-item-actions {
+  flex-shrink: 0;
+  margin-left: 20px;
+  padding-top: 16px; /* 与标题的padding-top保持一致 */
+  display: flex;
+  align-items: flex-start;
+}
+
+.favorite-item .remove-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid #f87171;
+  background-color: white;
+  color: #f87171;
+  white-space: nowrap;
+  box-shadow: var(--shadow-light);
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.favorite-item .remove-btn:hover {
+  background: linear-gradient(135deg, #f87171 0%, #fb7185 100%);
   color: white;
   transform: translateY(-2px);
-  box-shadow: var(--shadow-medium);
+  box-shadow: 0 4px 12px rgba(248, 113, 113, 0.3);
+}
+
+.favorite-item .remove-btn:active {
+  transform: translateY(0);
 }
 
 /* 设置部分 */

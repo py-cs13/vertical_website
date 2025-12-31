@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML渲染测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-content {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>HTML渲染测试</h1>
+    
+    <h2>1. 直接显示API返回的HTML内容</h2>
+    <div class="test-content" id="html-content"></div>
+    
+    <h2>2. 使用innerHTML渲染HTML内容</h2>
+    <div class="test-content" id="rendered-content"></div>
+    
+    <script>
+        // 模拟从API获取的HTML内容
+        const htmlContent = `<p>姐妹们～作为经历过两次孕期的二胎妈妈👩👧👦，今天想和大家聊聊孕期那些让人头疼的不适症状！相信很多准妈妈都正在经历这些困扰💆‍♀️</p>
+<p>记得我刚怀大宝的时候，每天都像是在闯关打怪👾，各种不适接踵而至。不过经过这两次孕期的摸索，我也总结出了不少实用小妙招！</p>
+<h3>✨孕吐缓解指南</h3>
+<ul>
+<li>少食多餐是关键🍴，避免空腹状态</li>
+<li>生姜茶或薄荷茶能有效缓解恶心🌿</li>
+<li>早晨起床前先吃几片苏打饼干🍪</li>
+<li>避开刺激性气味，保持空气流通💨</li>
+</ul>`;
+        
+        // 直接显示HTML内容（会转义标签）
+        document.getElementById('html-content').textContent = htmlContent;
+        
+        // 使用innerHTML渲染HTML内容（会解析标签）
+        document.getElementById('rendered-content').innerHTML = htmlContent;
+    </script>
+</body>
+</html>

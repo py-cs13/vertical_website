@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test v-html Directive</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+  <div id="app">
+    <h1>Test v-html Directive</h1>
+    <div v-html="htmlContent"></div>
+    <button @click="changeContent">Change Content</button>
+    <pre>Current HTML: {{ htmlContent }}</pre>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          htmlContent: '<h3>测试标题</h3><p>这是测试段落内容</p><ul><li>测试列表项1</li><li>测试列表项2</li></ul>'
+        }
+      },
+      methods: {
+        changeContent() {
+          this.htmlContent = '<h2>新标题</h2><p>这是新的段落内容</p><ol><li>有序列表项1</li><li>有序列表项2</li></ol>';
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

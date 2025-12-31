@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书风格排版测试</title>
+    <style>
+        /* 基础样式 */
+        :root {
+            --primary-color: #ff9a9e;
+            --secondary-color: #fecfef;
+            --accent-color: #fecfef;
+            --bg-primary: #fff;
+            --bg-secondary: #fafafa;
+            --text-primary: #333;
+            --text-secondary: #555;
+            --text-light: #999;
+            --border-color: #eee;
+            --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.05);
+            --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.08);
+            --shadow-large: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* 母婴主题装饰 */
+        .theme-decoration {
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            margin-bottom: 25px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .decoration-icon {
+            font-size: 36px;
+            filter: drop-shadow(0 4px 8px rgba(255, 154, 158, 0.2));
+            transform: rotate(-12deg);
+        }
+
+        .decoration-icon:nth-child(2) {
+            font-size: 40px;
+            transform: rotate(0deg);
+            animation-delay: 0.5s;
+        }
+
+        .decoration-icon:nth-child(3) {
+            font-size: 32px;
+            transform: rotate(12deg);
+            animation-delay: 1s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* 文章头部信息 - 小红书风格 */
+        .article-header {
+            margin-bottom: 40px;
+            background-color: #fff;
+            padding: 32px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 小红书风格装饰 */
+        .article-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+        }
+
+        /* 可爱的背景装饰 */
+        .article-header::after {
+            content: '🌸';
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 48px;
+            opacity: 0.08;
+            transform: rotate(15deg);
+        }
+
+        .article-category {
+            font-size: 14px;
+            color: #ff9a9e;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #fff5f5;
+            padding: 8px 16px;
+            border-radius: 20px;
+            width: fit-content;
+            box-shadow: 0 2px 8px rgba(255, 154, 158, 0.15);
+        }
+
+        .category-icon {
+            font-size: 18px;
+        }
+
+        .article-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            line-height: 1.3;
+            color: #333;
+            position: relative;
+            z-index: 1;
+        }
+
+        .article-meta {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            color: #999;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background-color: #fafafa;
+            padding: 6px 14px;
+            border-radius: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .meta-item:hover {
+            background-color: #fff5f5;
+            color: #ff9a9e;
+        }
+
+        .article-summary {
+            font-size: 17px;
+            line-height: 1.8;
+            color: #666;
+            background-color: #fafafa;
+            padding: 22px;
+            border-radius: 16px;
+            border-left: 4px solid #fecfef;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        /* 文章正文 - 小红书风格 */
+        .article-content {
+            margin-bottom: 40px;
+            font-size: 16px;
+            line-height: 2.0;
+            color: #333;
+            background-color: #fff;
+            padding: 32px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 小红书风格装饰元素 */
+        .article-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+        }
+
+        /* 标题样式 */
+        .article-content h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 40px 0 22px;
+            color: #333;
+            padding-left: 12px;
+            border-left: 4px solid #ff9a9e;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* 为标题添加emoji装饰 */
+        .article-content h2::before {
+            content: '✨';
+            font-size: 20px;
+        }
+
+        .article-content h2:first-child {
+            margin-top: 0;
+        }
+
+        /* 段落样式 */
+        .article-content p {
+            margin-bottom: 28px;
+            text-align: left;
+            color: #555;
+            font-size: 16px;
+        }
+
+        /* 首段特殊样式 */
+        .article-content p:first-child {
+            font-size: 17px;
+            color: #333;
+            font-weight: 500;
+            background-color: #fafafa;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 3px solid #fecfef;
+        }
+
+        /* 列表样式 */
+        .article-content ul, .article-content ol {
+            margin-left: 0;
+            margin-bottom: 30px;
+            padding-left: 0;
+        }
+
+        .article-content li {
+            margin-bottom: 16px;
+            padding-left: 36px;
+            position: relative;
+            line-height: 1.8;
+        }
+
+        /* 无序列表样式 - 小红书风格 */
+        .article-content ul li::before {
+            content: '✨';
+            position: absolute;
+            left: 8px;
+            top: 2px;
+            color: #ff9a9e;
+            font-size: 16px;
+        }
+
+        /* 有序列表样式 - 小红书风格 */
+        .article-content ol {
+            counter-reset: list-counter;
+        }
+
+        .article-content ol li::before {
+            content: counter(list-counter);
+            counter-increment: list-counter;
+            position: absolute;
+            left: 8px;
+            top: 2px;
+            background-color: #ff9a9e;
+            color: white;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* 强调文本样式 */
+        .article-content strong {
+            color: #ff9a9e;
+            font-weight: 600;
+        }
+
+        /* 引用样式 */
+        .article-content blockquote {
+            margin: 25px 0;
+            padding: 16px 20px;
+            background-color: #fafafa;
+            border-left: 3px solid #fecfef;
+            border-radius: 8px;
+            font-style: normal;
+            color: #666;
+        }
+
+        /* 分隔线样式 */
+        .article-content hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #fecfef, transparent);
+            margin: 40px 0;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            .article-header,
+            .article-content {
+                padding: 20px;
+            }
+
+            .article-title {
+                font-size: 24px;
+            }
+
+            .article-content h2 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 母婴主题装饰 -->
+        <div class="theme-decoration">
+            <div class="decoration-icon">👶</div>
+            <div class="decoration-icon">📚</div>
+            <div class="decoration-icon">🎀</div>
+        </div>
+
+        <!-- 文章头部信息 -->
+        <div class="article-header">
+            <div class="article-category">
+                <span class="category-icon">👶</span>
+                婴儿护理
+            </div>
+            <h1 class="article-title">新生儿护理的10个重要技巧，新手爸妈必看！</h1>
+            <div class="article-meta">
+                <span class="meta-item">
+                    <i class="icon">📅</i> 2024-06-03
+                </span>
+                <span class="meta-item">
+                    <i class="icon">👁️</i> 1567
+                </span>
+                <span class="meta-item">
+                    <i class="icon">❤️</i> 123
+                </span>
+            </div>
+            <div class="article-summary">作为新手父母，照顾刚出生的宝宝可能会感到紧张和不知所措。别担心，只要掌握了一些基本的护理知识和技巧，您就能成为一位出色的父母。本文将为您介绍10个关键的护理要点，帮助您更好地照顾宝宝。</div>
+        </div>
+
+        <!-- 文章正文 -->
+        <div class="article-content">
+            <p>欢迎阅读这篇关于新生儿护理的文章！作为新手父母，照顾刚出生的宝宝可能会感到紧张和不知所措。别担心，只要掌握了一些基本的护理知识和技巧，您就能成为一位出色的父母。</p>
+            
+            <h2>正确的抱姿</h2>
+            <p>新生儿的颈部肌肉还没有发育完全，所以抱宝宝时一定要支撑好他的头部和颈部。可以使用"摇篮抱"或者"足球抱"的方式，确保宝宝感到安全和舒适。</p>
+            
+            <h2>脐带护理</h2>
+            <p>新生儿的脐带需要保持清洁和干燥，直到自然脱落（通常需要1-2周时间）。每天用酒精棉擦拭脐带根部，避免感染。</p>
+            
+            <h2>洗澡时间</h2>
+            <p>给新生儿洗澡时，水温要控制在37-38℃左右。可以使用专门的婴儿浴盆，注意不要让水进入宝宝的耳朵和眼睛。洗澡时间不宜过长，5-10分钟即可。</p>
+            
+            <h2>睡眠安全</h2>
+            <p>为了降低SIDS（婴儿猝死综合征）的风险，建议让宝宝仰卧睡觉，避免使用过软的床垫和枕头。宝宝的睡眠环境要保持安静和舒适。</p>
+            
+            <h2>喂养技巧</h2>
+            <p>无论是母乳喂养还是配方奶喂养，都要注意正确的姿势和频率。新生儿通常每2-3小时需要喂一次奶，每次喂养时间在15-20分钟左右。</p>
+            
+            <h2>换尿布</h2>
+            <p>及时更换尿布可以预防尿布疹的发生。换尿布时要用温水清洗宝宝的臀部，然后擦干，必要时可以涂抹护臀霜。</p>
+            
+            <h2>体温监测</h2>
+            <p>新生儿的体温调节能力较弱，所以要经常监测宝宝的体温。正常体温范围在36.5-37.5℃之间。</p>
+            
+            <h2>哭闹安抚</h2>
+            <p>新生儿哭闹是表达需求的方式，可能是饿了、累了、尿布湿了或者需要安抚。可以尝试以下方法安抚宝宝：</p>
+            <ul>
+                <li>轻轻摇晃或拍打宝宝</li>
+                <li>给宝宝唱歌或播放轻柔的音乐</li>
+                <li>使用安抚奶嘴</li>
+                <li>包裹宝宝（襁褓法）</li>
+                <li>带宝宝散步或使用婴儿推车</li>
+            </ul>
+            
+            <h2>疫苗接种</h2>
+            <p>按照医生的建议，及时为宝宝接种疫苗，预防各种传染病。以下是新生儿期需要接种的疫苗：</p>
+            <ol>
+                <li>卡介苗：预防结核病</li>
+                <li>乙肝疫苗第一针：预防乙型肝炎</li>
+            </ol>
+            
+            <h2>观察异常情况</h2>
+            <p>要密切观察宝宝的身体状况，如果出现以下异常情况，要及时就医：</p>
+            <ul>
+                <li>发热（体温超过37.5℃）</li>
+                <li>呕吐频繁</li>
+                <li>腹泻次数过多</li>
+                <li>呼吸急促或困难</li>
+                <li>拒绝进食</li>
+                <li>皮肤出现异常皮疹</li>
+            </ul>
+            
+            <hr>
+            
+            <blockquote>
+                💡 小贴士：每个宝宝都是独特的，您需要根据自己宝宝的情况调整护理方式。如果有任何疑问，不要犹豫，及时咨询医生或专业人士。
+            </blockquote>
+            
+            <p>希望这些护理技巧能够帮助您更好地照顾宝宝！记住，<strong>耐心和爱心</strong>是成为好父母的关键。祝您和宝宝健康快乐！👶❤️</p>
+        </div>
+    </div>
+</body>
+</html>

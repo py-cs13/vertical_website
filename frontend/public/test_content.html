@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Store 测试</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/pinia@2/dist/pinia.iife.js"></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <h1>Content Store 测试页面</h1>
+        <button @click="testContentStore">测试 Content Store</button>
+        <div v-if="loading">加载中...</div>
+        <div v-else>
+            <h2>文章列表 ({{ articles.length }})</h2>
+            <ul>
+                <li v-for="article in articles" :key="article.id">
+                    {{ article.title }} - {{ article.category }}
+                </li>
+            </ul>
+            <h2>工具包列表 ({{ toolkits.length }})</h2>
+            <ul>
+                <li v-for="toolkit in toolkits" :key="toolkit.id">
+                    {{ toolkit.title }} - {{ toolkit.category }} - ¥{{ toolkit.price }}
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { createPinia, defineStore } = Pinia;
+        
+        // 创建 Pinia
+        const pinia = createPinia();
+        
+        // 定义 Content Store
+        const useContentStore = defineStore('content', {
+            state: () => ({
+                articles: [],
+                toolkits: [],
+                loading: false,
+                error: null
+            }),
+            
+            actions: {
+                async fetchLatestArticles() {
+                    this.loading = true;
+                    this.error = null;
+                    try {
+                        // 强制使用测试数据
+                        console.log('强制使用测试文章数据');
+                        this.articles = [
+                            {
+                                id: 1,
+                                title: '测试文章1 - 母婴育儿',
+                                summary: '这是测试文章1的摘要内容，关于母婴育儿的话题。',
+                                category: '母婴育儿',
+                                created_at: new Date().toISOString(),
+                                view_count: 100,
+                                likes: 10
+                            },
+                            {
+                                id: 2,
+                                title: '测试文章2 - 健康护理',
+                                summary: '这是测试文章2的摘要内容，关于健康护理的话题。',
+                                category: '健康护理',
+                                created_at: new Date().toISOString(),
+                                view_count: 200,
+                                likes: 20
+                            },
+                            {
+                                id: 3,
+                                title: '测试文章3 - 早期教育',
+                                summary: '这是测试文章3的摘要内容，关于早期教育的话题。',
+                                category: '早期教育',
+                                created_at: new Date().toISOString(),
+                                view_count: 150,
+                                likes: 15
+                            },
+                            {
+                                id: 4,
+                                title: '测试文章4 - 营养饮食',
+                                summary: '这是测试文章4的摘要内容，关于营养饮食的话题。',
+                                category: '营养饮食',
+                                created_at: new Date().toISOString(),
+                                view_count: 120,
+                                likes: 12
+                            }
+                        ];
+                        console.log('文章数据加载完成:', this.articles);
+                    } catch (error) {
+                        this.error = error.message;
+                        console.error('Failed to fetch latest articles:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                async fetchLatestToolkits() {
+                    this.loading = true;
+                    this.error = null;
+                    try {
+                        // 强制使用测试数据
+                        console.log('强制使用测试工具包数据');
+                        this.toolkits = [
+                            {
+                                id: 1,
+                                title: '测试工具包1 - 育儿工具',
+                                summary: '这是测试工具包1的摘要内容，关于育儿工具的话题。',
+                                category: '育儿工具',
+                                created_at: new Date().toISOString(),
+                                view_count: 150,
+                                likes: 15,
+                                price: 99.0
+                            },
+                            {
+                                id: 2,
+                                title: '测试工具包2 - 教育资源',
+                                summary: '这是测试工具包2的摘要内容，关于教育资源的话题。',
+                                category: '教育资源',
+                                created_at: new Date().toISOString(),
+                                view_count: 250,
+                                likes: 25,
+                                price: 129.0
+                            },
+                            {
+                                id: 3,
+                                title: '测试工具包3 - 营养健康',
+                                summary: '这是测试工具包3的摘要内容，关于营养健康的话题。',
+                                category: '营养健康',
+                                created_at: new Date().toISOString(),
+                                view_count: 350,
+                                likes: 35,
+                                price: 149.0
+                            }
+                        ];
+                        console.log('工具包数据加载完成:', this.toolkits);
+                    } catch (error) {
+                        this.error = error.message;
+                        console.error('Failed to fetch toolkits:', error);
+                    } finally {
+                        this.loading = false;
+                    }
+                }
+            }
+        });
+        
+        // 创建 Vue 应用
+        const app = createApp({
+            setup() {
+                const contentStore = useContentStore();
+                const loading = Vue.computed(() => contentStore.loading);
+                const articles = Vue.computed(() => contentStore.articles);
+                const toolkits = Vue.computed(() => contentStore.toolkits);
+                
+                const testContentStore = async () => {
+                    console.log('开始测试 Content Store');
+                    await Promise.all([
+                        contentStore.fetchLatestArticles(),
+                        contentStore.fetchLatestToolkits()
+                    ]);
+                    console.log('测试完成');
+                };
+                
+                return {
+                    loading,
+                    articles,
+                    toolkits,
+                    testContentStore
+                };
+            }
+        });
+        
+        // 使用 Pinia
+        app.use(pinia);
+        
+        // 挂载应用
+        app.mount('#app');
+    </script>
+</body>
+</html>

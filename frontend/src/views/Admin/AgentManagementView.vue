@@ -1,14 +1,14 @@
 <template>
-  <div class="toolkit-management-container">
+  <div class="agent-management-container">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h1>工具包管理</h1>
-      <button class="add-btn" @click="handleAddToolkit">
+      <h1>智能体管理</h1>
+      <button class="add-btn" @click="handleAddAgent">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
-        添加工具包
+        添加智能体
       </button>
     </div>
 
@@ -17,7 +17,7 @@
       <div class="search-box">
         <input 
           type="text" 
-          placeholder="搜索工具包名称或描述" 
+          placeholder="搜索智能体名称或描述" 
           v-model="searchQuery"
           @input="handleSearch"
         >
@@ -49,64 +49,64 @@
       </div>
     </div>
 
-    <!-- 工具包列表 -->
-    <div class="toolkits-grid">
+    <!-- 智能体列表 -->
+    <div class="agents-grid">
       <div 
-        v-for="toolkit in filteredToolkits" 
-        :key="toolkit.id" 
-        class="toolkit-card" 
-        :class="{ selected: selectedToolkits.includes(toolkit.id) }"
+        v-for="agent in filteredAgents" 
+        :key="agent.id" 
+        class="agent-card" 
+        :class="{ selected: selectedAgents.includes(agent.id) }"
       >
-        <div class="toolkit-header">
+        <div class="agent-header">
           <input 
             type="checkbox" 
-            :checked="selectedToolkits.includes(toolkit.id)" 
-            @change="toggleSelect(toolkit.id)"
+            :checked="selectedAgents.includes(agent.id)" 
+            @change="toggleSelect(agent.id)"
           >
-          <span class="toolkit-status" :class="toolkit.status">
-            {{ toolkit.status === 'active' ? '已上架' : '已下架' }}
+          <span class="agent-status" :class="agent.status">
+            {{ agent.status === 'active' ? '已上架' : '已下架' }}
           </span>
         </div>
         
-        <div class="toolkit-image">
-          <img :src="toolkit.image_url || '/placeholder-image.jpg'" alt="工具包图片">
+        <div class="agent-image">
+          <img :src="agent.image_url || '/placeholder-image.jpg'" alt="智能体图片">
         </div>
         
-        <div class="toolkit-info">
-          <h3 class="toolkit-name">{{ toolkit.name }}</h3>
-          <p class="toolkit-description">{{ toolkit.description }}</p>
-          <div class="toolkit-meta">
-            <span class="category">{{ getCategoryName(toolkit.category_id) }}</span>
-            <span class="price">¥{{ toolkit.price.toFixed(2) }}</span>
+        <div class="agent-info">
+          <h3 class="agent-name">{{ agent.name }}</h3>
+          <p class="agent-description">{{ agent.description }}</p>
+          <div class="agent-meta">
+            <span class="category">{{ getCategoryName(agent.category_id) }}</span>
+            <span class="price">¥{{ agent.price.toFixed(2) }}</span>
           </div>
-          <div class="toolkit-stats">
-            <span>销量: {{ toolkit.sales_count }}</span>
-            <span>下载: {{ toolkit.download_count }}</span>
+          <div class="agent-stats">
+            <span>销量: {{ agent.sales_count }}</span>
+            <span>下载: {{ agent.download_count }}</span>
           </div>
         </div>
         
-        <div class="toolkit-actions">
-          <button class="view-btn" @click="handleViewToolkit(toolkit)">
+        <div class="agent-actions">
+          <button class="view-btn" @click="handleViewAgent(agent)">
             查看
           </button>
-          <button class="edit-btn" @click="handleEditToolkit(toolkit)">
+          <button class="edit-btn" @click="handleEditAgent(agent)">
             编辑
           </button>
-          <button class="delete-btn" @click="handleDeleteToolkit(toolkit.id)">
+          <button class="delete-btn" @click="handleDeleteAgent(agent.id)">
             删除
           </button>
         </div>
       </div>
 
       <!-- 空状态 -->
-      <div v-if="filteredToolkits.length === 0" class="empty-state">
-        <p>暂无工具包数据</p>
+      <div v-if="filteredAgents.length === 0" class="empty-state">
+        <p>暂无智能体数据</p>
       </div>
     </div>
 
     <!-- 批量操作 -->
-    <div v-if="selectedToolkits.length > 0" class="batch-actions">
-      <p>已选择 {{ selectedToolkits.length }} 项</p>
+    <div v-if="selectedAgents.length > 0" class="batch-actions">
+      <p>已选择 {{ selectedAgents.length }} 项</p>
       <div class="batch-buttons">
         <button class="batch-active-btn" @click="handleBatchActive">
           批量上架
@@ -121,7 +121,7 @@
     </div>
 
     <!-- 分页 -->
-    <div v-if="filteredToolkits.length > 0" class="pagination">
+    <div v-if="filteredAgents.length > 0" class="pagination">
       <button 
         class="page-btn" 
         :disabled="currentPage === 1" 
@@ -141,11 +141,11 @@
       </button>
     </div>
 
-    <!-- 添加/编辑工具包模态框 -->
-    <div v-if="showToolkitModal" class="modal-overlay" @click="closeModal">
+    <!-- 添加/编辑智能体模态框 -->
+    <div v-if="showAgentModal" class="modal-overlay" @click="closeModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h3>{{ editingToolkit ? '编辑工具包' : '添加工具包' }}</h3>
+          <h3>{{ editingAgent ? '编辑智能体' : '添加智能体' }}</h3>
           <button class="close-btn" @click="closeModal">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -157,12 +157,12 @@
           <form @submit.prevent="handleSubmit">
             <div class="form-group">
               <label>名称</label>
-              <input type="text" v-model="toolkitForm.name" required>
+              <input type="text" v-model="agentForm.name" required>
             </div>
 
             <div class="form-group">
               <label>分类</label>
-              <select v-model="toolkitForm.category_id" required>
+              <select v-model="agentForm.category_id" required>
                 <option value="">请选择分类</option>
                 <option v-for="category in categories" :key="category.id" :value="category.id">
                   {{ category.name }}
@@ -172,12 +172,12 @@
 
             <div class="form-group">
               <label>价格 (元)</label>
-              <input type="number" v-model.number="toolkitForm.price" min="0" step="0.01" required>
+              <input type="number" v-model.number="agentForm.price" min="0" step="0.01" required>
             </div>
 
             <div class="form-group">
               <label>状态</label>
-              <select v-model="toolkitForm.status" required>
+              <select v-model="agentForm.status" required>
                 <option value="active">已上架</option>
                 <option value="inactive">已下架</option>
               </select>
@@ -185,22 +185,22 @@
 
             <div class="form-group">
               <label>描述</label>
-              <textarea v-model="toolkitForm.description" rows="5" required></textarea>
+              <textarea v-model="agentForm.description" rows="5" required></textarea>
             </div>
 
             <div class="form-group">
-              <label>工具包文件</label>
+              <label>智能体文件</label>
               <input type="file" @change="handleFileUpload">
-              <div v-if="toolkitForm.file_name" class="file-info">
-                当前文件: {{ toolkitForm.file_name }}
+              <div v-if="agentForm.file_name" class="file-info">
+                当前文件: {{ agentForm.file_name }}
               </div>
             </div>
 
             <div class="form-group">
-              <label>工具包图片</label>
+              <label>智能体图片</label>
               <input type="file" accept="image/*" @change="handleImageUpload">
-              <div v-if="toolkitForm.image_url" class="image-preview">
-                <img :src="toolkitForm.image_url" alt="工具包预览">
+              <div v-if="agentForm.image_url" class="image-preview">
+                <img :src="agentForm.image_url" alt="智能体预览">
               </div>
             </div>
 
@@ -209,7 +209,7 @@
                 取消
               </button>
               <button type="submit" class="submit-btn">
-                {{ editingToolkit ? '更新工具包' : '保存工具包' }}
+                {{ editingAgent ? '更新智能体' : '保存智能体' }}
               </button>
             </div>
           </form>
@@ -257,18 +257,18 @@ const toolkitForm = ref({
 // 分类列表（从store获取）
 const categories = computed(() => contentStore.categories)
 
-// 工具包列表（从store获取）
-const toolkits = computed(() => contentStore.toolkits)
+// 智能体列表（从store获取）
+const agents = computed(() => contentStore.agents)
 
-// 过滤后的工具包列表
-const filteredToolkits = computed(() => {
-  return toolkits.value.filter(toolkit => {
+// 过滤后的智能体列表
+const filteredAgents = computed(() => {
+  return agents.value.filter(agent => {
     const matchesSearch = !searchQuery.value || 
-      toolkit.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      toolkit.description.toLowerCase().includes(searchQuery.value.toLowerCase())
+      agent.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      agent.description.toLowerCase().includes(searchQuery.value.toLowerCase())
     
-    const matchesCategory = !categoryFilter.value || toolkit.category_id === Number(categoryFilter.value)
-    const matchesStatus = !statusFilter.value || toolkit.status === statusFilter.value
+    const matchesCategory = !categoryFilter.value || agent.category_id === Number(categoryFilter.value)
+    const matchesStatus = !statusFilter.value || agent.status === statusFilter.value
     
     return matchesSearch && matchesCategory && matchesStatus
   })
@@ -276,7 +276,7 @@ const filteredToolkits = computed(() => {
 
 // 总页数
 const totalPages = computed(() => {
-  return Math.ceil(filteredToolkits.value.length / pageSize.value)
+  return Math.ceil(filteredAgents.value.length / pageSize.value)
 })
 
 // 监听筛选条件变化
@@ -287,7 +287,7 @@ watch([searchQuery, categoryFilter, statusFilter], () => {
     category: categoryFilter.value,
     status: statusFilter.value
   })
-  fetchToolkits()
+  fetchAgents()
 })
 
 // 获取分类名称
@@ -299,13 +299,13 @@ const getCategoryName = (categoryId) => {
 // 搜索处理
 const handleSearch = () => {
   currentPage.value = 1
-  fetchToolkits()
+  fetchAgents()
 }
 
 // 筛选处理
 const handleFilter = () => {
   currentPage.value = 1
-  fetchToolkits()
+  fetchAgents()
 }
 
 // 重置筛选
@@ -315,23 +315,23 @@ const resetFilters = () => {
   statusFilter.value = ''
   currentPage.value = 1
   contentStore.resetFilter()
-  fetchToolkits()
+  fetchAgents()
 }
 
 // 单个选择
-const toggleSelect = (toolkitId) => {
-  const index = selectedToolkits.value.indexOf(toolkitId)
+const toggleSelect = (agentId) => {
+  const index = selectedAgents.value.indexOf(agentId)
   if (index > -1) {
-    selectedToolkits.value.splice(index, 1)
+    selectedAgents.value.splice(index, 1)
   } else {
-    selectedToolkits.value.push(toolkitId)
+    selectedAgents.value.push(agentId)
   }
 }
 
-// 添加工具包
-const handleAddToolkit = () => {
-  editingToolkit.value = false
-  toolkitForm.value = {
+// 添加智能体
+const handleAddAgent = () => {
+  editingAgent.value = false
+  agentForm.value = {
     name: '',
     category_id: '',
     price: 0,
@@ -341,26 +341,26 @@ const handleAddToolkit = () => {
     file_name: '',
     file_path: ''
   }
-  showToolkitModal.value = true
+  showAgentModal.value = true
 }
 
-// 编辑工具包
-const handleEditToolkit = (toolkit) => {
-  editingToolkit.value = true
-  toolkitForm.value = { ...toolkit }
-  showToolkitModal.value = true
+// 编辑智能体
+const handleEditAgent = (agent) => {
+  editingAgent.value = true
+  agentForm.value = { ...agent }
+  showAgentModal.value = true
 }
 
-// 查看工具包
-const handleViewToolkit = (toolkit) => {
-  // 这里可以添加查看工具包详情的逻辑
-  console.log('查看工具包:', toolkit)
+// 查看智能体
+const handleViewAgent = (agent) => {
+  // 这里可以添加查看智能体详情的逻辑
+  console.log('查看智能体:', agent)
 }
 
-// 删除工具包
-const handleDeleteToolkit = async (toolkitId) => {
+// 删除智能体
+const handleDeleteAgent = async (agentId) => {
   const result = await Swal.fire({
-    title: '确定要删除这个工具包吗？',
+    title: '确定要删除这个智能体吗？',
     text: '删除后将无法恢复！',
     icon: 'warning',
     showCancelButton: true,
@@ -372,10 +372,10 @@ const handleDeleteToolkit = async (toolkitId) => {
 
   if (result.isConfirmed) {
     try {
-      await contentStore.deleteToolkit(toolkitId)
-      Swal.fire('删除成功！', '工具包已被删除。', 'success')
+      await contentStore.deleteAgent(agentId)
+      Swal.fire('删除成功！', '智能体已被删除。', 'success')
     } catch (error) {
-      Swal.fire('错误', '删除工具包失败', 'error')
+      Swal.fire('错误', '删除智能体失败', 'error')
     }
   }
 }
@@ -383,7 +383,7 @@ const handleDeleteToolkit = async (toolkitId) => {
 // 批量上架
 const handleBatchActive = async () => {
   const result = await Swal.fire({
-    title: '确定要批量上架选中的工具包吗？',
+    title: '确定要批量上架选中的智能体吗？',
     icon: 'question',
     showCancelButton: true,
     confirmButtonColor: '#3085d6',
@@ -394,9 +394,9 @@ const handleBatchActive = async () => {
 
   if (result.isConfirmed) {
     try {
-      await contentStore.batchUpdateToolkits(selectedToolkits.value, { status: 'active' })
-      selectedToolkits.value = []
-      Swal.fire('操作成功！', '选中的工具包已批量上架。', 'success')
+      await contentStore.batchUpdateAgents(selectedAgents.value, { status: 'active' })
+      selectedAgents.value = []
+      Swal.fire('操作成功！', '选中的智能体已批量上架。', 'success')
     } catch (error) {
       Swal.fire('错误', '批量上架失败', 'error')
     }
@@ -406,7 +406,7 @@ const handleBatchActive = async () => {
 // 批量下架
 const handleBatchInactive = async () => {
   const result = await Swal.fire({
-    title: '确定要批量下架选中的工具包吗？',
+    title: '确定要批量下架选中的智能体吗？',
     icon: 'question',
     showCancelButton: true,
     confirmButtonColor: '#3085d6',
@@ -417,9 +417,9 @@ const handleBatchInactive = async () => {
 
   if (result.isConfirmed) {
     try {
-      await contentStore.batchUpdateToolkits(selectedToolkits.value, { status: 'inactive' })
-      selectedToolkits.value = []
-      Swal.fire('操作成功！', '选中的工具包已批量下架。', 'success')
+      await contentStore.batchUpdateAgents(selectedAgents.value, { status: 'inactive' })
+      selectedAgents.value = []
+      Swal.fire('操作成功！', '选中的智能体已批量下架。', 'success')
     } catch (error) {
       Swal.fire('错误', '批量下架失败', 'error')
     }
@@ -429,7 +429,7 @@ const handleBatchInactive = async () => {
 // 批量删除
 const handleBatchDelete = async () => {
   const result = await Swal.fire({
-    title: '确定要批量删除选中的工具包吗？',
+    title: '确定要批量删除选中的智能体吗？',
     text: '删除后将无法恢复！',
     icon: 'warning',
     showCancelButton: true,
@@ -441,9 +441,9 @@ const handleBatchDelete = async () => {
 
   if (result.isConfirmed) {
     try {
-      await contentStore.batchDeleteToolkits(selectedToolkits.value)
-      selectedToolkits.value = []
-      Swal.fire('删除成功！', '选中的工具包已批量删除。', 'success')
+      await contentStore.batchDeleteAgents(selectedAgents.value)
+      selectedAgents.value = []
+      Swal.fire('删除成功！', '选中的智能体已批量删除。', 'success')
     } catch (error) {
       Swal.fire('错误', '批量删除失败', 'error')
     }
@@ -452,9 +452,9 @@ const handleBatchDelete = async () => {
 
 // 关闭模态框
 const closeModal = () => {
-  showToolkitModal.value = false
+  showAgentModal.value = false
   setTimeout(() => {
-    toolkitForm.value = {
+    agentForm.value = {
       name: '',
       category_id: '',
       price: 0,
@@ -464,7 +464,7 @@ const closeModal = () => {
       file_name: '',
       file_path: ''
     }
-    editingToolkit.value = false
+    editingAgent.value = false
   }, 300)
 }
 
@@ -472,7 +472,7 @@ const closeModal = () => {
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
   if (file) {
-    toolkitForm.value.file_name = file.name
+    agentForm.value.file_name = file.name
     // 这里可以添加文件上传的API调用
     // 实际项目中应该上传文件到服务器并获取file_path
   }
@@ -484,7 +484,7 @@ const handleImageUpload = (event) => {
   if (file) {
     const reader = new FileReader()
     reader.onload = (e) => {
-      toolkitForm.value.image_url = e.target.result
+      agentForm.value.image_url = e.target.result
     }
     reader.readAsDataURL(file)
     // 实际项目中应该上传图片到服务器并获取image_url
@@ -494,40 +494,40 @@ const handleImageUpload = (event) => {
 // 提交表单
 const handleSubmit = async () => {
   try {
-    if (editingToolkit.value) {
-      // 更新工具包
-      await contentStore.updateToolkit(toolkitForm.value)
-      Swal.fire('更新成功！', '工具包已更新。', 'success')
+    if (editingAgent.value) {
+      // 更新智能体
+      await contentStore.updateAgent(agentForm.value)
+      Swal.fire('更新成功！', '智能体已更新。', 'success')
     } else {
-      // 添加新工具包
-      await contentStore.createToolkit(toolkitForm.value)
-      Swal.fire('添加成功！', '工具包已添加。', 'success')
+      // 添加新智能体
+      await contentStore.createAgent(agentForm.value)
+      Swal.fire('添加成功！', '智能体已添加。', 'success')
     }
     closeModal()
   } catch (error) {
-    Swal.fire('错误', editingToolkit.value ? '更新工具包失败' : '添加工具包失败', 'error')
+    Swal.fire('错误', editingAgent.value ? '更新智能体失败' : '添加智能体失败', 'error')
   }
 }
 
-// 获取工具包数据
-const fetchToolkits = async () => {
+// 获取智能体数据
+const fetchAgents = async () => {
   try {
-    await contentStore.fetchToolkits()
+    await contentStore.fetchAgents()
     await contentStore.fetchCategories()
   } catch (error) {
-    console.error('获取工具包列表失败:', error)
-    Swal.fire('错误', '获取工具包列表失败', 'error')
+    console.error('获取智能体列表失败:', error)
+    Swal.fire('错误', '获取智能体列表失败', 'error')
   }
 }
 
 // 页面加载时获取数据
 onMounted(async () => {
-  await fetchToolkits()
+  await fetchAgents()
 })
 </script>
 
 <style scoped>
-.toolkits-management-container {
+.agents-management-container {
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -649,16 +649,16 @@ onMounted(async () => {
   background-color: #a6a9ad;
 }
 
-/* 工具包网格 */
-.toolkits-grid {
+/* 智能体网格 */
+.agents-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
   margin-bottom: 20px;
 }
 
-/* 工具包卡片 */
-.toolkit-card {
+/* 智能体卡片 */
+.agent-card {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
@@ -666,17 +666,17 @@ onMounted(async () => {
   transition: all 0.3s ease;
 }
 
-.toolkit-card:hover {
+.agent-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
 }
 
-.toolkit-card.selected {
+.agent-card.selected {
   border: 2px solid #409eff;
   box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
 }
 
-.toolkit-header {
+.agent-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -684,7 +684,7 @@ onMounted(async () => {
   background-color: #f5f7fa;
 }
 
-.toolkit-status {
+.agent-status {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 4px;
@@ -692,45 +692,45 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-.toolkit-status.active {
+.agent-status.active {
   background-color: #ecf5ff;
   color: #409eff;
 }
 
-.toolkit-status.inactive {
+.agent-status.inactive {
   background-color: #fdf6ec;
   color: #e6a23c;
 }
 
-.toolkit-image {
+.agent-image {
   height: 200px;
   overflow: hidden;
   background-color: #f5f7fa;
 }
 
-.toolkit-image img {
+.agent-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s ease;
 }
 
-.toolkit-card:hover .toolkit-image img {
+.agent-card:hover .agent-image img {
   transform: scale(1.05);
 }
 
-.toolkit-info {
+.agent-info {
   padding: 15px;
 }
 
-.toolkit-name {
+.agent-name {
   margin: 0 0 10px 0;
   font-size: 16px;
   color: #303133;
   font-weight: 600;
 }
 
-.toolkit-description {
+.agent-description {
   margin: 0 0 15px 0;
   font-size: 14px;
   color: #606266;
@@ -741,35 +741,21 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.toolkit-meta {
+.agent-meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
 }
 
-.category {
-  font-size: 12px;
-  color: #909399;
-  background-color: #f5f7fa;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.price {
-  font-size: 16px;
-  color: #f56c6c;
-  font-weight: 600;
-}
-
-.toolkit-stats {
+.agent-stats {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
   color: #909399;
 }
 
-.toolkit-actions {
+.agent-actions {
   display: flex;
   padding: 10px 15px 15px;
   gap: 8px;
@@ -1098,7 +1084,7 @@ onMounted(async () => {
     justify-content: center;
   }
   
-  .toolkits-grid {
+  .agents-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
   
@@ -1109,7 +1095,7 @@ onMounted(async () => {
 }
 
 @media (max-width: 480px) {
-  .toolkits-grid {
+  .agents-grid {
     grid-template-columns: 1fr;
   }
 }

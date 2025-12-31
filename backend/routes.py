@@ -1,7 +1,7 @@
 # API路由文件
 # 实现用户认证和内容管理的所有API端点
 
-from fastapi import APIRouter, Depends, status, Request, UploadFile, File, Body
+from fastapi import APIRouter, Depends, status, Request, UploadFile, File, Body, Query
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from sqlalchemy.orm import Session
 from datetime import timedelta, date
@@ -17,18 +17,20 @@ from fastapi_csrf_protect.exceptions import CsrfProtectError
 from main import RateLimiter
 
 from database import get_db
-from models import User, Content, OrderItem
+from models import User, Content, OrderItem, Like
 from schemas import (
     UserCreate, UserLogin, UserResponse, UserUpdate, Token,
     ContentCreate, ContentUpdate, ContentResponse, ContentListResponse,
     PasswordResetRequest, PasswordReset, MessageResponse,
-    OrderCreate, OrderResponse, OrderListResponse, PaymentRequest, PaymentResponse, PaymentCallback, OrderItemCreate
+    OrderCreate, OrderResponse, OrderListResponse, PaymentRequest, PaymentResponse, PaymentCallback, OrderItemCreate,
+    FavoriteCreate, FavoriteResponse, FavoriteContentResponse, FavoriteListResponse, ContentWithLikedResponse,
+    LikeCreate, LikeResponse, LikeStatusResponse, ContentWithLikeStatusResponse
 )
 from auth import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from dependencies import get_current_active_user, get_current_admin_user
 from logging_config import get_logger
 from errors import ConflictError, BadRequestError, ResourceNotFoundError, AuthorizationError
-from payment import create_order, get_order, get_user_orders, process_payment, handle_payment_callback, cancel_order, get_order_by_number, check_user_purchased_toolkit
+from payment import create_order, get_order, get_user_orders, process_payment, handle_payment_callback, cancel_order, get_order_by_number, check_user_purchased_agent
 from pdf_generator import PDFGenerator
 
 # 获取日志器
@@ -637,7 +639,11 @@ def get_content_list(
     """
     logger.info(f"获取内容列表请求: 分类={category}, skip={skip}, limit={limit}")
     
-    query = db.query(Content).filter(Content.is_published == True)
+    # 构建查询：只获取已发布且不是智能体的内容
+    query = db.query(Content).filter(
+        Content.is_published == True,
+        Content.category != "agent"
+    )
     
     # 如果提供了分类，添加分类筛选
     if category:
@@ -645,6 +651,11 @@ def get_content_list(
     
     # 获取内容列表
     contents = query.order_by(Content.created_at.desc()).offset(skip).limit(limit).all()
+    
+    # 为每个内容获取实时点赞数（从Like表查询，而不是使用缓存的Content.likes）
+    for content in contents:
+        real_time_likes = db.query(Like).filter(Like.content_id == content.id).count()
+        content.likes = real_time_likes
     
     logger.info(f"获取内容列表成功: 返回数量={len(contents)}, 分类={category}")
     return contents
@@ -678,10 +689,164 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
     
     # 更新浏览量
     content.view_count += 1
+    
+    # 移除内容中的字数统计信息
+    import re
+    if content.content:
+        # 移除所有位置的字数统计信息 (全文约xxx字) 或 ((全文约xxx字))
+        content.content = re.sub(r'^\s*\(?全文约\d+字\)?\s*\n*', '', content.content)
+        content.content = re.sub(r'(?:\s*\n+)?\(?全文约\d+字\)?\s*$', '', content.content)
+        content.content = re.sub(r'\n*\s*\(?全文约\d+字\)?\s*\n*', '\n', content.content)
+        
+        # 处理连续的p标签 - 在HTML标签中添加换行符，确保标签结构完整
+        content.content = re.sub(r'</p>\s*<p>', '</p>\n<p>', content.content)
+        
+        # 处理空括号的方法：
+        # 1. 移除所有空括号（包括括号内有空格的情况）
+        content.content = re.sub(r'\s*\(\s*\)\s*', '', content.content)
+        
+        # 清理可能产生的多余换行符
+        content.content = re.sub(r'\n+', '\n', content.content)
+        content.content = content.content.strip()
+    
     db.commit()
     
     logger.info(f"获取内容详情成功: 内容ID={content_id}, 标题={content.title}, 浏览量={content.view_count}")
     return content
+
+
+@router.post("/api/content/{content_id}/like", response_model=LikeStatusResponse, dependencies=[Depends(RateLimiter(times=20, seconds=60))])
+def toggle_like(
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    点赞/取消点赞内容接口
+    
+    Args:
+        content_id: 要点赞的内容ID
+        db: 数据库会话
+        current_user: 当前认证的活跃用户
+    
+    Returns:
+        LikeStatusResponse: 包含是否已点赞和点赞总数的响应
+    
+    Raises:
+        ResourceNotFoundError: 404错误，如果内容不存在或未发布
+    """
+    logger.info(f"点赞请求: 内容ID={content_id}, 用户ID={current_user.id}")
+    
+    # 查找内容
+    content = db.query(Content).filter(
+        Content.id == content_id, Content.is_published == True
+    ).first()
+    
+    if not content:
+        logger.warning(f"内容不存在或未发布: 内容ID={content_id}")
+        raise ResourceNotFoundError(message="内容不存在或未发布", details={"content_id": content_id})
+    
+    # 检查用户是否已点赞
+    existing_like = db.query(Like).filter(
+        Like.user_id == current_user.id,
+        Like.content_id == content_id
+    ).first()
+    
+    if existing_like:
+        # 已点赞，取消点赞
+        db.delete(existing_like)
+        content.likes = max(0, content.likes - 1)
+        is_liked = False
+        logger.info(f"取消点赞成功: 内容ID={content_id}, 用户ID={current_user.id}")
+    else:
+        # 未点赞，添加点赞
+        new_like = Like(
+            user_id=current_user.id,
+            content_id=content_id
+        )
+        db.add(new_like)
+        content.likes += 1
+        is_liked = True
+        logger.info(f"点赞成功: 内容ID={content_id}, 用户ID={current_user.id}")
+    
+    db.commit()
+    
+    # 获取最新的点赞总数
+    like_count = db.query(Like).filter(Like.content_id == content_id).count()
+    
+    return {"is_liked": is_liked, "like_count": like_count}
+
+
+@router.get("/api/content/{content_id}/like/status", response_model=LikeStatusResponse, dependencies=[Depends(RateLimiter(times=20, seconds=60))])
+def get_like_status(
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    获取内容点赞状态接口
+    
+    Args:
+        content_id: 要获取点赞状态的内容ID
+        db: 数据库会话
+        current_user: 当前认证的活跃用户
+    
+    Returns:
+        LikeStatusResponse: 包含是否已点赞和点赞总数的响应
+    
+    Raises:
+        ResourceNotFoundError: 404错误，如果内容不存在
+    """
+    logger.info(f"获取点赞状态请求: 内容ID={content_id}, 用户ID={current_user.id}")
+    
+    # 查找内容
+    content = db.query(Content).filter(Content.id == content_id).first()
+    
+    if not content:
+        logger.warning(f"内容不存在: 内容ID={content_id}")
+        raise ResourceNotFoundError(message="内容不存在", details={"content_id": content_id})
+    
+    # 检查用户是否已点赞
+    existing_like = db.query(Like).filter(
+        Like.user_id == current_user.id,
+        Like.content_id == content_id
+    ).first()
+    
+    # 获取点赞总数
+    like_count = db.query(Like).filter(Like.content_id == content_id).count()
+    
+    is_liked = existing_like is not None
+    
+    logger.info(f"获取点赞状态成功: 内容ID={content_id}, 用户ID={current_user.id}, 是否已点赞={is_liked}, 点赞数={like_count}")
+    return {"is_liked": is_liked, "like_count": like_count}
+
+
+@router.get("/api/articles", response_model=List[ContentResponse])
+def get_all_articles(db: Session = Depends(get_db)):
+    """
+    获取所有文章接口
+    
+    Args:
+        db: 数据库会话
+    
+    Returns:
+        List[ContentResponse]: 所有文章列表
+    """
+    logger.info("获取所有文章请求")
+    
+    # 获取所有已发布的非智能体文章
+    articles = db.query(Content).filter(
+        Content.is_published == True,
+        Content.category != "agent"
+    ).order_by(Content.created_at.desc()).all()
+    
+    # 为每个文章获取实时点赞数（从Like表查询，而不是使用缓存的Content.likes）
+    for article in articles:
+        real_time_likes = db.query(Like).filter(Like.content_id == article.id).count()
+        article.likes = real_time_likes
+    
+    logger.info(f"获取所有文章成功: 返回数量={len(articles)}")
+    return articles
 
 
 @router.get("/api/articles/latest", response_model=List[ContentResponse])
@@ -698,94 +863,134 @@ def get_latest_articles(limit: int = 5, db: Session = Depends(get_db)):
     """
     logger.info(f"获取最新文章请求: limit={limit}")
     
-    # 获取最新发布的文章
+    # 获取最新发布的非智能体文章
     articles = db.query(Content).filter(
-        Content.is_published == True
+        Content.is_published == True,
+        Content.category != "agent"
     ).order_by(Content.created_at.desc()).limit(limit).all()
+    
+    # 为每个文章获取实时点赞数（从Like表查询，而不是使用缓存的Content.likes）
+    for article in articles:
+        real_time_likes = db.query(Like).filter(Like.content_id == article.id).count()
+        article.likes = real_time_likes
     
     logger.info(f"获取最新文章成功: 返回数量={len(articles)}")
     return articles
 
 
-@router.get("/api/toolkits/latest", response_model=List[ContentResponse])
-def get_latest_toolkits(limit: int = 5, db: Session = Depends(get_db)):
+@router.get("/api/agents", response_model=List[ContentResponse])
+def get_all_agents(db: Session = Depends(get_db)):
     """
-    获取最新工具包接口
+    获取所有智能体接口
     
     Args:
-        limit: 返回的最大工具包数
         db: 数据库会话
     
     Returns:
-        List[ContentResponse]: 最新工具包列表
+        List[ContentResponse]: 所有智能体列表
     """
-    logger.info(f"获取最新工具包请求: limit={limit}")
+    logger.info("获取所有智能体请求")
     
-    # 获取最新发布的工具包（暂时不使用category过滤和排序，用于调试）
-    toolkits = db.query(Content).filter(
-        Content.is_published == True
-    ).limit(limit).all()
+    # 获取所有已发布的智能体（包含母婴相关智能体分类）
+    agents = db.query(Content).filter(
+        Content.is_published == True,
+        Content.category == "agent"
+    ).order_by(Content.created_at.desc()).all()
     
-    logger.info(f"获取最新工具包成功: 返回数量={len(toolkits)}")
-    return toolkits
+    # 为每个智能体获取实时点赞数（从Like表查询）
+    for agent in agents:
+        real_time_likes = db.query(Like).filter(Like.content_id == agent.id).count()
+        agent.likes = real_time_likes
+    
+    logger.info(f"获取所有智能体成功: 返回数量={len(agents)}")
+    return agents
 
 
-@router.get("/api/toolkits/{toolkit_id}/download")
-def download_toolkit(
-    toolkit_id: int,
+@router.get("/api/agents/latest", response_model=List[ContentResponse])
+def get_latest_agents(limit: int = 5, db: Session = Depends(get_db)):
+    """
+    获取最新智能体接口
+    
+    Args:
+        limit: 返回的最大智能体数
+        db: 数据库会话
+    
+    Returns:
+        List[ContentResponse]: 最新智能体列表
+    """
+    logger.info(f"获取最新智能体请求: limit={limit}")
+    
+    # 获取最新发布的智能体（包含母婴相关智能体分类）
+    agents = db.query(Content).filter(
+        Content.is_published == True,
+        Content.category == "agent"
+    ).order_by(Content.created_at.desc()).limit(limit).all()
+    
+    # 为每个智能体获取实时点赞数（从Like表查询）
+    for agent in agents:
+        real_time_likes = db.query(Like).filter(Like.content_id == agent.id).count()
+        agent.likes = real_time_likes
+    
+    logger.info(f"获取最新智能体成功: 返回数量={len(agents)}")
+    return agents
+
+
+@router.get("/api/agents/{agent_id}/download")
+def download_agent(
+    agent_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    下载工具包PDF接口
+    下载智能体PDF接口
     
     Args:
-        toolkit_id: 要下载的工具包ID
+        agent_id: 要下载的智能体ID
         db: 数据库会话
         current_user: 当前认证的活跃用户
     
     Returns:
-        StreamingResponse: 工具包PDF文件流
+        StreamingResponse: 智能体PDF文件流
     
     Raises:
-        ResourceNotFoundError: 404错误，如果工具包不存在
-        AuthorizationError: 403错误，如果用户没有购买该工具包
+        ResourceNotFoundError: 404错误，如果智能体不存在
+        AuthorizationError: 403错误，如果用户没有购买该智能体
     """
-    logger.info(f"下载工具包请求: 工具包ID={toolkit_id}, 用户ID={current_user.id}")
+    logger.info(f"下载智能体请求: 智能体ID={agent_id}, 用户ID={current_user.id}")
     
-    # 查找工具包
-    toolkit = db.query(Content).filter(
-        Content.id == toolkit_id,
+    # 查找智能体
+    agent = db.query(Content).filter(
+        Content.id == agent_id,
         Content.is_published == True,
-        Content.category == "toolkit"
+        Content.category == "agent"
     ).first()
     
-    if not toolkit:
-        logger.warning(f"工具包不存在: 工具包ID={toolkit_id}")
-        raise ResourceNotFoundError(message="工具包不存在", details={"toolkit_id": toolkit_id})
+    if not agent:
+        logger.warning(f"智能体不存在: 智能体ID={agent_id}")
+        raise ResourceNotFoundError(message="智能体不存在", details={"agent_id": agent_id})
     
-    # 检查用户是否已购买该工具包
-    if not check_user_purchased_toolkit(db, current_user.id, toolkit_id):
-        logger.warning(f"用户未购买该工具包: 用户ID={current_user.id}, 工具包ID={toolkit_id}")
-        raise AuthorizationError(message="您尚未购买该工具包", details={"toolkit_id": toolkit_id})
+    # 检查用户是否已购买该智能体
+    if not check_user_purchased_agent(db, current_user.id, agent_id):
+        logger.warning(f"用户未购买该智能体: 用户ID={current_user.id}, 智能体ID={agent_id}")
+        raise AuthorizationError(message="您尚未购买该智能体", details={"agent_id": agent_id})
     
     # 生成PDF
     pdf_generator = PDFGenerator()
-    toolkit_content = {
-        "title": toolkit.title,
-        "content": toolkit.content
+    agent_content = {
+        "title": agent.title,
+        "content": agent.content
     }
     
-    pdf_buffer = pdf_generator.generate_toolkit_pdf(toolkit_content, toolkit.title)
+    pdf_buffer = pdf_generator.generate_agent_pdf(agent_content, agent.title)
     
     # 创建响应
     pdf_buffer.seek(0)
     
-    logger.info(f"工具包PDF生成成功: 工具包ID={toolkit_id}, 用户ID={current_user.id}")
+    logger.info(f"智能体PDF生成成功: 智能体ID={agent_id}, 用户ID={current_user.id}")
     
     # 使用RFC 5987标准对中文文件名进行编码
     from urllib.parse import quote
-    filename = f"{toolkit.title}.pdf"
+    filename = f"{agent.title}.pdf"
     encoded_filename = quote(filename.encode('utf-8'))
     
     return StreamingResponse(
@@ -1238,9 +1443,9 @@ async def handle_payment_notification(
 async def download_file(product_id: str):
     # 模拟文件下载功能
     # 在实际项目中，这里应该从数据库获取产品信息，然后返回实际的文件
-    file_content = """This is a mock toolkit file content.
+    file_content = """This is a mock agent file content.
 
-In a real project, this should return the actual toolkit content.
+In a real project, this should return the actual agent content.
 
 Product ID: %s
 """ % product_id
@@ -1249,7 +1454,7 @@ Product ID: %s
     file_bytes = file_content.encode('utf-8')
     
     headers = {
-        "Content-Disposition": f"attachment; filename=toolkit_{product_id}.zip",
+        "Content-Disposition": f"attachment; filename=agent_{product_id}.zip",
         "Content-Type": "application/zip"
     }
     
@@ -1979,3 +2184,232 @@ def get_admin_top_affiliate_users(
             "total_commission_amount": float(user.total_commission_amount or 0)
         } for user in top_users]
     })
+
+
+# 收藏API
+
+@router.post("/api/content/{content_id}/collect", response_model=FavoriteResponse, dependencies=[Depends(RateLimiter(times=20, seconds=60))])
+def toggle_collect(
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    收藏/取消收藏内容接口
+    
+    Args:
+        content_id: 要收藏的内容ID
+        db: 数据库会话
+        current_user: 当前认证的活跃用户
+    
+    Returns:
+        FavoriteResponse: 收藏记录
+    
+    Raises:
+        ResourceNotFoundError: 404错误，如果内容不存在或未发布
+        ConflictError: 409错误，如果收藏记录已存在
+    """
+    from models import Favorite
+    
+    logger.info(f"收藏请求: 内容ID={content_id}, 用户ID={current_user.id}")
+    
+    # 查找内容
+    content = db.query(Content).filter(
+        Content.id == content_id, Content.is_published == True
+    ).first()
+    
+    if not content:
+        logger.warning(f"内容不存在或未发布: 内容ID={content_id}")
+        raise ResourceNotFoundError(message="内容不存在或未发布", details={"content_id": content_id})
+    
+    # 检查是否已收藏
+    existing_favorite = db.query(Favorite).filter(
+        Favorite.user_id == current_user.id,
+        Favorite.content_id == content_id
+    ).first()
+    
+    if existing_favorite:
+        # 取消收藏
+        db.delete(existing_favorite)
+        db.commit()
+        logger.info(f"取消收藏成功: 内容ID={content_id}, 用户ID={current_user.id}")
+        return JSONResponse({
+            "status": "success",
+            "message": "取消收藏成功",
+            "data": {
+                "id": existing_favorite.id,
+                "user_id": current_user.id,
+                "content_id": content_id,
+                "created_at": existing_favorite.created_at.isoformat() if existing_favorite.created_at else None
+            }
+        })
+    
+    # 创建收藏记录
+    favorite = Favorite(
+        user_id=current_user.id,
+        content_id=content_id
+    )
+    
+    db.add(favorite)
+    db.commit()
+    db.refresh(favorite)
+    
+    logger.info(f"收藏成功: 内容ID={content_id}, 用户ID={current_user.id}, 收藏ID={favorite.id}")
+    return favorite
+
+
+@router.get("/api/users/me/favorites", response_model=FavoriteListResponse)
+def get_my_favorites(
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(10, ge=1, le=50, description="每页数量"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    获取当前用户的收藏列表接口
+    
+    Args:
+        page: 页码，从1开始
+        page_size: 每页数量，最大50
+        db: 数据库会话
+        current_user: 当前认证的活跃用户
+    
+    Returns:
+        FavoriteListResponse: 收藏列表
+    """
+    from models import Favorite
+    
+    logger.info(f"获取收藏列表请求: 用户ID={current_user.id}, 页码={page}, 每页={page_size}")
+    
+    # 查询收藏记录
+    favorites_query = db.query(Favorite).filter(
+        Favorite.user_id == current_user.id
+    ).order_by(Favorite.created_at.desc())
+    
+    # 计算总数
+    total = favorites_query.count()
+    
+    # 分页
+    favorites = favorites_query.offset((page - 1) * page_size).limit(page_size).all()
+    
+    # 构建响应数据
+    data = []
+    for fav in favorites:
+        # 获取内容详情
+        content = db.query(Content).filter(Content.id == fav.content_id).first()
+        if content:
+            data.append({
+                "id": fav.id,
+                "content_id": fav.content_id,
+                "content": content,
+                "created_at": fav.created_at
+            })
+    
+    logger.info(f"获取收藏列表成功: 用户ID={current_user.id}, 返回数量={len(data)}, 总数={total}")
+    
+    return {
+        "status": "success",
+        "data": data,
+        "total": total
+    }
+
+
+@router.get("/api/content/{content_id}/collect/status")
+def get_collect_status(
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    获取内容的收藏状态接口
+    
+    Args:
+        content_id: 内容ID
+        db: 数据库会话
+        current_user: 当前认证的活跃用户
+    
+    Returns:
+        JSONResponse: 收藏状态
+    """
+    from models import Favorite
+    
+    logger.info(f"获取收藏状态请求: 内容ID={content_id}, 用户ID={current_user.id}")
+    
+    # 检查是否已收藏
+    favorite = db.query(Favorite).filter(
+        Favorite.user_id == current_user.id,
+        Favorite.content_id == content_id
+    ).first()
+    
+    is_collected = favorite is not None
+    
+    logger.info(f"获取收藏状态成功: 内容ID={content_id}, 用户ID={current_user.id}, is_collected={is_collected}")
+    
+    return JSONResponse({
+        "status": "success",
+        "data": {
+            "content_id": content_id,
+            "is_collected": is_collected
+        }
+    })
+
+
+@router.get("/api/content/{content_id}/detail", response_model=ContentWithLikedResponse)
+def get_content_with_status(
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    获取内容详情（包含点赞和收藏状态）
+    
+    Args:
+        content_id: 内容ID
+        db: 数据库会话
+        current_user: 当前认证的活跃用户
+    
+    Returns:
+        ContentWithLikedResponse: 包含状态的内容详情
+    """
+    from models import Favorite
+    
+    logger.info(f"获取内容详情（带状态）: 内容ID={content_id}, 用户ID={current_user.id}")
+    
+    # 查找内容
+    content = db.query(Content).filter(
+        Content.id == content_id, Content.is_published == True
+    ).first()
+    
+    if not content:
+        logger.warning(f"内容不存在或未发布: 内容ID={content_id}")
+        raise ResourceNotFoundError(message="内容不存在或未发布", details={"content_id": content_id})
+    
+    # 检查是否已收藏
+    favorite = db.query(Favorite).filter(
+        Favorite.user_id == current_user.id,
+        Favorite.content_id == content_id
+    ).first()
+    
+    is_collected = favorite is not None
+    
+    # 构建响应
+    result = ContentWithLikedResponse(
+        id=content.id,
+        title=content.title,
+        category=content.category,
+        summary=content.summary,
+        content=content.content,
+        author_id=content.author_id,
+        is_published=content.is_published,
+        view_count=content.view_count,
+        likes=content.likes,
+        created_at=content.created_at,
+        updated_at=content.updated_at,
+        published_at=content.published_at,
+        price=content.price,
+        is_liked=False,  # 点赞状态可以后续添加点赞关联表来实现
+        is_collected=is_collected
+    )
+    
+    logger.info(f"获取内容详情（带状态）成功: 内容ID={content_id}, is_collected={is_collected}")
+    return result

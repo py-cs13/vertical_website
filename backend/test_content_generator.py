@@ -29,7 +29,7 @@ test_topics = [
     "健康饮食：如何合理搭配一日三餐"
 ]
 
-test_categories = ["母婴育儿", "健康养生"]
+test_categories = ["母婴育儿"]
 
 def test_deepseek_connection():
     """测试百度智能云千帆API连接"""
@@ -98,6 +98,7 @@ def test_content_generation():
             print(f"标题: {article['title']}")
             print(f"摘要: {article['summary'][:100]}...")
             print(f"内容长度: {len(article['content'])} 字符")
+            print(f"内容预览: {article['content'][:200]}...")
             return True
         else:
             print("❌ 文章生成失败")

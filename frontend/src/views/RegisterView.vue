@@ -134,8 +134,8 @@ const handleRegister = async () => {
   
   try {
     // 调用注册方法，传递推广码
-    const success = await userStore.register(username.value, email.value, password.value, referralCode.value)
-    if (success) {
+    const result = await userStore.register(username.value, email.value, password.value, referralCode.value)
+    if (result) {
       // 注册成功，重定向到首页
       router.push('/')
     } else {
@@ -149,7 +149,7 @@ const handleRegister = async () => {
     } else if (err.response?.data?.message) {
       error.value = err.response.data.message
     } else {
-      error.value = '注册失败，请稍后重试'
+      error.value = err.message || '注册失败，请稍后重试'
     }
     console.error('注册错误:', err)
   } finally {

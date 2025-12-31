@@ -28,7 +28,7 @@
             <i class="icon">📅</i> {{ formatDate(article.created_at) }}
           </span>
           <span class="meta-item">
-            <i class="icon">👁️</i> {{ formatNumber(article.views) }}
+            <i class="icon">👁️</i> {{ formatNumber(article.view_count) }}
           </span>
           <span class="meta-item">
             <i class="icon">❤️</i> {{ formatNumber(article.likes) }}
@@ -39,7 +39,7 @@
       
       <!-- 文章正文 -->
       <div class="article-content">
-        <!-- 使用 v-html 渲染富文本内容 -->
+        <!-- 直接渲染API返回的HTML -->
         <div v-html="article.content"></div>
       </div>
       
@@ -50,6 +50,7 @@
           size="medium" 
           @click="toggleLike"
           :class="{ 'active': article.liked, 'like-btn': true }"
+          :disabled="isLiking"
         >
           <i class="icon">❤️</i> {{ article.liked ? '已点赞' : '点赞' }}
         </Button>
@@ -101,15 +102,18 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useContentStore } from '../stores'
+import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router'
+import { useContentStore, useAuthStore } from '../stores'
+import axios from 'axios'
 import Button from '../components/Button.vue'
 import { formatDate, formatNumber } from '../utils/formatters'
+import { marked } from 'marked'
 
 const route = useRoute()
 const router = useRouter()
 const contentStore = useContentStore()
-const articleId = parseInt(route.params.id)
+const authStore = useAuthStore()
+const articleId = ref(route.params.id) // 使用ref来跟踪路由参数的id值
 const loading = ref(true)
 
 // 文章详情
@@ -120,114 +124,236 @@ const article = ref({
   summary: '',
   content: '',
   created_at: '',
-  views: 0,
+  view_count: 0,
   likes: 0,
   liked: false,
   collected: false
 })
 
+// 点赞按钮加载状态
+const isLiking = ref(false)
+
 // 相关推荐
 const relatedArticles = ref([
   { id: 2, title: '如何科学安排孕期饮食', category: '营养辅食', summary: '孕期饮食对胎儿发育至关重要，本文将为您介绍科学的孕期饮食安排。' },
-  { id: 3, title: '新生儿护理的10个关键要点', category: '婴儿护理', summary: '新手父母必看，掌握这些新生儿护理技巧，让宝宝健康成长。' },
+  { id: 3, title: '新生儿护理的10个关键要点', category: '母婴育儿', summary: '新手父母必看，掌握这些新生儿护理技巧，让宝宝健康成长。' },
   { id: 4, title: '亲子互动游戏推荐（0-1岁）', category: '亲子互动', summary: '通过简单的互动游戏，促进宝宝的智力和情感发展。' },
   { id: 5, title: '产后恢复的正确方法', category: '产后恢复', summary: '科学的产后恢复计划，帮助新妈妈快速恢复身体健康。' },
   { id: 6, title: '宝宝辅食添加时间表', category: '营养辅食', summary: '了解宝宝不同阶段的辅食添加建议，让宝宝营养均衡成长。' },
-  { id: 7, title: '婴儿睡眠习惯培养指南', category: '婴儿护理', summary: '帮助宝宝建立良好的睡眠习惯，让全家都能睡个好觉。' }
+  { id: 7, title: '婴儿睡眠习惯培养指南', category: '母婴育儿', summary: '帮助宝宝建立良好的睡眠习惯，让全家都能睡个好觉。' }
 ])
 
 // 获取分类对应的图标
 const getCategoryIcon = (categoryName) => {
   const iconMap = {
-    '婴儿护理': '👶',
+    '母婴育儿': '👶',
     '育儿知识': '📚',
     '营养辅食': '🍼',
     '产后恢复': '🤰',
     '亲子互动': '👨‍👩‍👧',
     '成长发育': '🌱',
+    '早期教育': '🎓',
     '健康养生': '💊',
     '母婴育儿': '👪'
   }
   return iconMap[categoryName] || '📖'
 }
 
+// 将Markdown内容转换为HTML格式的函数 - 简化版，更适合直接显示后端传来的小红书风格内容
+const formatContent = (content) => {
+  if (!content) return '';
+  
+  // 直接返回内容，不做任何处理，因为后端已经返回了HTML格式的内容
+  return content;
+}
+
 // 加载文章详情
-onMounted(async () => {
+const loadArticleDetail = async (id) => {
   loading.value = true
   try {
     // 尝试从store获取文章详情
-    const articleData = await contentStore.fetchArticleDetail(articleId)
+    const articleData = await contentStore.fetchArticleDetail(id)
     if (articleData) {
+      // 调试：打印API返回的content字段
+      console.log('API返回的content类型:', typeof articleData.content)
+      console.log('API返回的content前100字符:', articleData.content.substring(0, 100))
+      // 直接使用后端返回的HTML内容，不需要再用marked解析
       article.value = {
         ...articleData,
-        liked: false,
-        collected: false
+        content: articleData.content,
+        liked: articleData.liked || false,
+        collected: articleData.collected || false
       }
     } else {
       // 如果store没有数据，使用模拟数据
       article.value = {
-        id: articleId,
+        id: id,
         title: '新生儿护理的10个重要技巧',
-        category: '婴儿护理',
+        category: '母婴育儿',
         summary: '作为新手父母，掌握正确的新生儿护理技巧至关重要。本文将为您介绍10个关键的护理要点，帮助您更好地照顾宝宝。',
-        content: `
-          <p>欢迎阅读这篇关于新生儿护理的文章！作为新手父母，照顾刚出生的宝宝可能会感到紧张和不知所措。别担心，只要掌握了一些基本的护理知识和技巧，您就能成为一位出色的父母。</p>
-          
-          <h2>1. 正确的抱姿</h2>
-          <p>新生儿的颈部肌肉还没有发育完全，所以抱宝宝时一定要支撑好他的头部和颈部。可以使用"摇篮抱"或者"足球抱"的方式，确保宝宝感到安全和舒适。</p>
-          
-          <h2>2. 脐带护理</h2>
-          <p>新生儿的脐带需要保持清洁和干燥，直到自然脱落（通常需要1-2周时间）。每天用酒精棉擦拭脐带根部，避免感染。</p>
-          
-          <h2>3. 洗澡时间</h2>
-          <p>给新生儿洗澡时，水温要控制在37-38℃左右。可以使用专门的婴儿浴盆，注意不要让水进入宝宝的耳朵和眼睛。洗澡时间不宜过长，5-10分钟即可。</p>
-          
-          <h2>4. 睡眠安全</h2>
-          <p>为了降低SIDS（婴儿猝死综合征）的风险，建议让宝宝仰卧睡觉，避免使用过软的床垫和枕头。宝宝的睡眠环境要保持安静和舒适。</p>
-          
-          <h2>5. 喂养技巧</h2>
-          <p>无论是母乳喂养还是配方奶喂养，都要注意正确的姿势和频率。新生儿通常每2-3小时需要喂一次奶，每次喂养时间在15-20分钟左右。</p>
-          
-          <h2>6. 换尿布</h2>
-          <p>及时更换尿布可以预防尿布疹的发生。换尿布时要用温水清洗宝宝的臀部，然后擦干，必要时可以涂抹护臀霜。</p>
-          
-          <h2>7. 体温监测</h2>
-          <p>新生儿的体温调节能力较弱，所以要经常监测宝宝的体温。正常体温范围在36.5-37.5℃之间。</p>
-          
-          <h2>8. 哭闹安抚</h2>
-          <p>新生儿哭闹是表达需求的方式，可能是饿了、累了、尿布湿了或者需要安抚。可以尝试轻轻摇晃、抚摸或者唱歌来安抚宝宝。</p>
-          
-          <h2>9. 疫苗接种</h2>
-          <p>按照医生的建议，及时为宝宝接种疫苗，预防各种传染病。</p>
-          
-          <h2>10. 观察异常情况</h2>
-          <p>要密切观察宝宝的身体状况，如果出现发热、呕吐、腹泻、呼吸急促等异常情况，要及时就医。</p>
-          
-          <p>希望这些护理技巧能够帮助您更好地照顾宝宝！记住，每个宝宝都是独特的，您需要根据自己宝宝的情况调整护理方式。如果有任何疑问，不要犹豫，及时咨询医生或专业人士。</p>
-        `,
-        created_at: '2024-06-03',
-        views: 1567,
-        likes: 123,
+        content: `<p>作为新手父母，掌握正确的新生儿护理技巧至关重要。本文将为您介绍10个关键的护理要点，帮助您更好地照顾宝宝。</p>\n\n<h2>1. 保持清洁与卫生</h2>\n<p>新生儿的皮肤非常娇嫩，需要特别注意清洁和卫生。每天用温水为宝宝洗澡，避免使用刺激性的沐浴产品。</p>\n\n<h2>2. 正确的喂养方式</h2>\n<p>母乳喂养是最佳的选择，如果无法母乳喂养，可以选择适合宝宝的配方奶粉。喂养时要注意正确的姿势，避免宝宝呛奶。</p>\n\n<h2>3. 充足的睡眠</h2>\n<p>新生儿每天需要大量的睡眠，确保宝宝有一个安静、舒适的睡眠环境，有助于宝宝的生长发育。</p>\n\n<h2>4. 体温调节</h2>\n<p>新生儿的体温调节能力较差，要注意保持室内温度适宜，避免宝宝过热或过冷。</p>\n\n<h2>5. 脐带护理</h2>\n<p>保持宝宝的脐带部位清洁干燥，避免感染。一般情况下，脐带会在出生后1-2周自然脱落。</p>\n\n<h2>6. 观察宝宝的状态</h2>\n<p>密切观察宝宝的饮食、睡眠、大小便等情况，如有异常及时就医。</p>\n\n<h2>7. 避免过度刺激</h2>\n<p>新生儿的神经系统尚未发育完善，要避免过度的噪音、强光等刺激。</p>\n\n<h2>8. 适当的抚触</h2>\n<p>适当的抚触有助于促进宝宝的血液循环和身体发育，增强亲子关系。</p>\n\n<h2>9. 按时接种疫苗</h2>\n<p>按照医生的建议，按时为宝宝接种疫苗，预防各种疾病。</p>\n\n<h2>10. 寻求专业帮助</h2>\n<p>如果您有任何关于新生儿护理的问题，不要犹豫，及时寻求医生或专业人士的帮助。</p>`,
+        created_at: new Date().toISOString(),
+        views: Math.floor(Math.random() * 1000),
+        likes: Math.floor(Math.random() * 100),
         liked: false,
         collected: false
       }
     }
+    
+    // 如果用户已登录，获取收藏状态和点赞状态
+    if (authStore.token) {
+      try {
+        // 获取收藏状态
+        const collectResponse = await axios.get(
+          `/api/content/${id}/collect/status`,
+          {
+            headers: {
+              'Authorization': `Bearer ${authStore.token}`
+            }
+          }
+        )
+        article.value.collected = collectResponse.data.data.is_collected
+        
+        // 获取点赞状态
+        const likeResponse = await axios.get(
+          `/api/content/${id}/like/status`,
+          {
+            headers: {
+              'Authorization': `Bearer ${authStore.token}`
+            }
+          }
+        )
+        // 注意：点赞状态接口返回的数据没有包裹data字段
+        article.value.liked = likeResponse.data.is_liked
+        article.value.likes = likeResponse.data.like_count
+      } catch (error) {
+        console.error('获取状态失败:', error)
+      }
+    }
+    
   } catch (error) {
-    console.error('Failed to load article:', error)
+    console.error('加载文章详情失败:', error)
+    // 使用模拟数据作为备选
+    article.value = {
+      id: id,
+      title: '新生儿护理的10个重要技巧',
+      category: '母婴育儿',
+      summary: '作为新手父母，掌握正确的新生儿护理技巧至关重要。本文将为您介绍10个关键的护理要点，帮助您更好地照顾宝宝。',
+      content: `<p>作为新手父母，掌握正确的新生儿护理技巧至关重要。本文将为您介绍10个关键的护理要点，帮助您更好地照顾宝宝。</p>\n\n<h2>1. 保持清洁与卫生</h2>\n<p>新生儿的皮肤非常娇嫩，需要特别注意清洁和卫生。每天用温水为宝宝洗澡，避免使用刺激性的沐浴产品。</p>\n\n<h2>2. 正确的喂养方式</h2>\n<p>母乳喂养是最佳的选择，如果无法母乳喂养，可以选择适合宝宝的配方奶粉。喂养时要注意正确的姿势，避免宝宝呛奶。</p>\n\n<h2>3. 充足的睡眠</h2>\n<p>新生儿每天需要大量的睡眠，确保宝宝有一个安静、舒适的睡眠环境，有助于宝宝的生长发育。</p>\n\n<h2>4. 体温调节</h2>\n<p>新生儿的体温调节能力较差，要注意保持室内温度适宜，避免宝宝过热或过冷。</p>\n\n<h2>5. 脐带护理</h2>\n<p>保持宝宝的脐带部位清洁干燥，避免感染。一般情况下，脐带会在出生后1-2周自然脱落。</p>\n\n<h2>6. 观察宝宝的状态</h2>\n<p>密切观察宝宝的饮食、睡眠、大小便等情况，如有异常及时就医。</p>\n\n<h2>7. 避免过度刺激</h2>\n<p>新生儿的神经系统尚未发育完善，要避免过度的噪音、强光等刺激。</p>\n\n<h2>8. 适当的抚触</h2>\n<p>适当的抚触有助于促进宝宝的血液循环和身体发育，增强亲子关系。</p>\n\n<h2>9. 按时接种疫苗</h2>\n<p>按照医生的建议，按时为宝宝接种疫苗，预防各种疾病。</p>\n\n<h2>10. 寻求专业帮助</h2>\n<p>如果您有任何关于新生儿护理的问题，不要犹豫，及时寻求医生或专业人士的帮助。</p>`,
+      created_at: new Date().toISOString(),
+      views: Math.floor(Math.random() * 1000),
+      likes: Math.floor(Math.random() * 100),
+      liked: false,
+      collected: false
+    }
   } finally {
     loading.value = false
   }
+}
+
+// 监听路由参数变化
+onBeforeRouteUpdate((to, from) => {
+  if (to.params.id !== from.params.id) {
+    articleId.value = to.params.id
+    article.value.id = articleId.value
+    loadArticleDetail(articleId.value)
+  }
+})
+
+// 初始加载文章详情
+onMounted(async () => {
+  await loadArticleDetail(articleId.value)
 })
 
 // 切换点赞状态
-const toggleLike = () => {
-  article.value.liked = !article.value.liked
-  article.value.likes += article.value.liked ? 1 : -1
+const toggleLike = async () => {
+  const token = authStore.token
+  if (!token) {
+    alert('请先登录再点赞')
+    return
+  }
+  
+  // 防止重复点击
+  if (isLiking.value) return
+  isLiking.value = true
+  
+  // 乐观更新：先切换本地状态
+  const wasLiked = article.value.liked
+  article.value.liked = !wasLiked
+  article.value.likes += wasLiked ? -1 : 1
+  
+  try {
+    const response = await axios.post(
+      `/api/content/${articleId.value}/like`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }
+    )
+    
+    // 使用后端返回的点赞状态和数量
+    if (response.data && response.data.data) {
+      article.value.liked = response.data.data.is_liked
+      article.value.likes = response.data.data.like_count
+    }
+  } catch (error) {
+    console.error('点赞失败:', error)
+    // 回滚乐观更新
+    article.value.liked = wasLiked
+    article.value.likes += wasLiked ? 1 : -1
+    
+    if (error.response?.status === 401) {
+      alert('请先登录后再点赞')
+    } else {
+      alert(error.response?.data?.detail || '点赞失败，请稍后重试')
+    }
+  } finally {
+    isLiking.value = false
+  }
 }
 
 // 切换收藏状态
-const toggleCollect = () => {
-  article.value.collected = !article.value.collected
+const toggleCollect = async () => {
+  const token = authStore.token
+  if (!token) {
+    alert('请先登录再收藏')
+    return
+  }
+  
+  // 乐观更新：先切换本地状态
+  const wasCollected = article.value.collected
+  article.value.collected = !wasCollected
+  
+  try {
+    const response = await axios.post(
+      `/api/content/${articleId.value}/collect`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+    
+    // 兼容两种响应格式：
+    // 1. 收藏成功时：response.data 是 {id, user_id, content_id, created_at}
+    // 2. 取消收藏时：response.data.data 是 {id, user_id, content_id, created_at}
+    // 通过判断 response.data.id 是否存在来确定响应格式
+    article.value.collected = response.data.id !== undefined ? !wasCollected : response.data.data.is_collected
+  } catch (error) {
+    console.error('收藏失败:', error)
+    // 回滚乐观更新
+    article.value.collected = wasCollected
+    
+    if (error.response?.status === 401) {
+      alert('请先登录后再收藏')
+    } else {
+      alert(error.response?.data?.detail || '收藏失败，请稍后重试')
+    }
+  }
 }
 
 // 分享文章
@@ -235,6 +361,7 @@ const shareArticle = () => {
   // 实际项目中这里会调用分享API
   alert('分享功能开发中...')
 }
+
 </script>
 
 <style scoped>
@@ -310,132 +437,450 @@ const shareArticle = () => {
   font-weight: 500;
 }
 
-/* 文章头部信息 */
+/* 文章头部信息 - 小红书风格 */
 .article-header {
   margin-bottom: 40px;
-  padding-bottom: 25px;
-  border-bottom: 2px solid var(--border-color);
-  background-color: var(--bg-primary);
-  padding: 25px;
-  border-radius: 16px;
-  box-shadow: var(--shadow-medium);
+  background-color: #fff;
+  padding: 32px;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   position: relative;
   overflow: hidden;
 }
 
+/* 小红书风格装饰 */
 .article-header::before {
-  content: "👶";
+  content: '';
   position: absolute;
-  top: 15px;
-  right: 15px;
-  font-size: 40px;
-  opacity: 0.1;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);
+}
+
+/* 可爱的背景装饰 */
+.article-header::after {
+  content: '🌸';
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 48px;
+  opacity: 0.08;
   transform: rotate(15deg);
 }
 
 .article-category {
   font-size: 14px;
-  color: var(--primary-color);
-  font-weight: 600;
-  margin-bottom: 12px;
+  color: #ff9a9e;
+  font-weight: 700;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: var(--bg-secondary);
-  padding: 6px 12px;
-  border-radius: 15px;
+  background-color: #fff5f5;
+  padding: 8px 16px;
+  border-radius: 20px;
   width: fit-content;
+  box-shadow: 0 2px 8px rgba(255, 154, 158, 0.15);
 }
 
 .category-icon {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .article-title {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   line-height: 1.3;
-  color: var(--text-primary);
+  color: #333;
+  position: relative;
+  z-index: 1;
 }
 
 .article-meta {
   display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
-  font-size: 14px;
-  color: var(--text-light);
+  gap: 16px;
+  margin-bottom: 24px;
+  font-size: 13px;
+  color: #999;
   flex-wrap: wrap;
 }
 
 .meta-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background-color: var(--bg-secondary);
-  padding: 4px 12px;
-  border-radius: 12px;
+  gap: 6px;
+  background-color: #fafafa;
+  padding: 6px 14px;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.meta-item:hover {
+  background-color: #fff5f5;
+  color: #ff9a9e;
 }
 
 .article-summary {
-  font-size: 16px;
-  line-height: 1.7;
-  color: var(--text-secondary);
-  background-color: var(--bg-secondary);
-  padding: 18px;
-  border-radius: 12px;
-  border-left: 4px solid var(--primary-color);
+  font-size: 17px;
+  line-height: 1.8;
+  color: #666;
+  background-color: #fafafa;
+  padding: 22px;
+  border-radius: 16px;
+  border-left: 4px solid #fecfef;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 }
 
-/* 文章正文 */
+/* 母婴主题装饰 - 优化 */
+.theme-decoration {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  margin-bottom: 25px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.decoration-icon {
+  font-size: 36px;
+  filter: drop-shadow(0 4px 8px rgba(255, 154, 158, 0.2));
+  transform: rotate(-12deg);
+}
+
+.decoration-icon:nth-child(2) {
+  font-size: 40px;
+  transform: rotate(0deg);
+  animation-delay: 0.5s;
+}
+
+.decoration-icon:nth-child(3) {
+  font-size: 32px;
+  transform: rotate(12deg);
+  animation-delay: 1s;
+}
+
+/* 文章正文 - 小红书风格优化 */
 .article-content {
   margin-bottom: 40px;
   font-size: 16px;
-  line-height: 1.8;
-  color: var(--text-primary);
-  background-color: var(--bg-primary);
-  padding: 30px;
-  border-radius: 16px;
-  box-shadow: var(--shadow-medium);
+  line-height: 2.2;
+  color: #333;
+  background-color: #fff;
+  padding: 36px;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
 }
 
-.article-content h2 {
-  font-size: 24px;
-  font-weight: 600;
+/* 小红书风格装饰元素 */
+.article-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 8px;
+  background: linear-gradient(90deg, #ff9a9e 0%, #fecfef 50%, #ff9a9e 100%);
+}
+
+/* 标题样式优化 - 增强层级感 */
+.article-content :deep(h1) {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 40px 0 22px;
+  color: #333;
+  padding-left: 12px;
+  border-left: 4px solid #ff9a9e;
+  background: linear-gradient(45deg, #fff5f5, #ffffff);
+  padding: 10px 18px;
+  border-radius: 12px;
+}
+
+.article-content :deep(h2) {
+  font-size: 22px;
+  font-weight: 700;
   margin: 35px 0 20px;
-  color: var(--primary-color);
-  padding-bottom: 8px;
-  border-bottom: 2px solid var(--border-color);
+  color: #333;
+  padding-left: 14px;
+  background: linear-gradient(45deg, #fff5f5, #ffffff);
+  padding: 8px 18px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-left: 3px solid #ff9a9e;
 }
 
-.article-content h2:first-child {
+.article-content :deep(h3) {
+  font-size: 19px;
+  font-weight: 600;
+  margin: 30px 0 16px;
+  color: #444;
+  padding-left: 10px;
+  border-left: 3px solid #fecfef;
+}
+
+.article-content :deep(h2:first-child),
+.article-content :deep(h1:first-child) {
   margin-top: 0;
 }
 
-.article-content p {
-  margin-bottom: 25px;
-  text-align: justify;
+/* 段落样式优化 - 增强可读性 */
+.article-content :deep(p) {
+  margin-bottom: 32px;
+  text-align: left;
+  color: #555;
+  font-size: 16px;
+  padding: 0 8px;
+  text-indent: 2em;
+  background-color: rgba(255, 255, 255, 0.8);
+  transition: all 0.3s ease;
 }
 
-.article-content ul, .article-content ol {
-  margin-left: 25px;
-  margin-bottom: 25px;
-  padding-left: 10px;
+.article-content :deep(p:hover) {
+  background-color: #fff5f5;
+  border-radius: 8px;
+  padding: 8px 12px;
 }
 
-.article-content li {
-  margin-bottom: 12px;
-  padding-left: 8px;
+/* 首段特殊样式 */
+.article-content :deep(p:first-child) {
+  font-size: 17px;
+  color: #333;
+  font-weight: 500;
+  background-color: #fafafa;
+  padding: 20px;
+  border-radius: 12px;
 }
 
-.article-content ul li::marker {
-  color: var(--primary-color);
+/* 列表样式优化 - 小红书风格 */
+.article-content :deep(ul), .article-content :deep(ol) {
+  margin-left: 0;
+  margin-bottom: 35px;
+  padding-left: 0;
+  background-color: #fff5f5;
+  padding: 22px 25px;
+  border-radius: 16px;
+  border: 1px solid #ffe4e1;
+  box-shadow: 0 2px 10px rgba(255, 154, 158, 0.1);
+}
+
+.article-content :deep(li) {
+  margin-bottom: 22px;
+  padding-left: 45px;
+  position: relative;
+  line-height: 2.0;
+  color: #444;
+  font-size: 16px;
+  background-color: white;
+  padding: 12px 16px 12px 45px;
+  border-radius: 12px;
+  border-left: 3px solid #ff9a9e;
+  transition: all 0.3s ease;
+}
+
+.article-content :deep(li:hover) {
+  transform: translateX(5px);
+  box-shadow: 0 3px 12px rgba(255, 154, 158, 0.15);
+}
+
+/* 无序列表样式 - 小红书风格优化 */
+.article-content :deep(ul li)::before {
+  content: '🎀';
+  position: absolute;
+  left: 12px;
+  top: 14px;
+  color: #ff69b4;
+  font-size: 18px;
+  filter: drop-shadow(0 2px 4px rgba(255, 105, 180, 0.3));
+}
+
+/* 有序列表样式 - 小红书风格优化 */
+.article-content :deep(ol) {
+  counter-reset: list-counter;
+  background-color: #fff0f5;
+}
+
+.article-content :deep(ol li)::before {
+  content: counter(list-counter);
+  counter-increment: list-counter;
+  position: absolute;
+  left: 12px;
+  top: 16px;
+  background-color: #ff69b4;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(255, 105, 180, 0.4);
+}
+
+/* 强调文本样式优化 */
+.article-content :deep(strong) {
+  color: #ff69b4;
+  font-weight: 700;
+  background-color: rgba(255, 105, 180, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin: 0 2px;
+  box-shadow: 0 2px 4px rgba(255, 105, 180, 0.2);
+}
+
+/* 粗体和斜体组合样式 */
+.article-content :deep(strong em),
+.article-content :deep(em strong) {
+  background-color: rgba(255, 154, 158, 0.2);
+  color: #ff1493;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-style: italic;
+}
+
+/* 文本链接样式优化 */
+.article-content :deep(a) {
+  color: #ff9a9e;
+  text-decoration: none;
+  border-bottom: 2px solid #ff9a9e;
+  padding-bottom: 1px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.article-content :deep(a:hover) {
+  color: #ff69b4;
+  background-color: rgba(255, 105, 180, 0.1);
+  border-bottom-color: #ff69b4;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 引用样式 */
+.article-content :deep(blockquote) {
+  margin: 25px 0;
+  padding: 16px 20px;
+  background-color: #fafafa;
+  border-radius: 8px;
+  font-style: normal;
+  color: #666;
+}
+
+/* 分隔线样式 */
+.article-content :deep(hr) {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #fecfef, transparent);
+  margin: 40px 0;
+}
+
+/* 小红书风格自定义类样式 - 优化版本 */
+.article-content :deep(.xiaohongshu-title) {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 45px 0 25px;
+  color: #333;
+  padding: 14px 24px;
+  background: linear-gradient(45deg, #fff5f5, #ffffff);
+  border-radius: 12px;
+  border-left: 4px solid #ff9a9e;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(255, 154, 158, 0.1);
+}
+
+.article-content :deep(.xiaohongshu-subtitle) {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 38px 0 20px;
+  color: #444;
+  padding: 12px 20px;
+  background: linear-gradient(45deg, #fef0f5, #ffffff);
+  border-radius: 10px;
+  border-left: 3px solid #fecfef;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.article-content :deep(.xiaohongshu-list-item) {
+  margin-bottom: 22px;
+  text-align: left;
+  color: #444;
+  font-size: 16px;
+  padding-left: 40px;
+  line-height: 2.0;
+  position: relative;
+}
+
+.article-content :deep(.xiaohongshu-list-item::before) {
+  content: '🎀';
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  color: #ff69b4;
   font-size: 18px;
 }
 
-.article-content ol li::marker {
-  color: var(--primary-color);
-  font-weight: 600;
+.article-content :deep(.xiaohongshu-quote) {
+  margin: 30px 0;
+  padding: 22px 28px;
+  background: linear-gradient(135deg, #fff0f5, #ffffff);
+  border-radius: 12px;
+  font-style: normal;
+  color: #555;
+  font-size: 16px;
+  line-height: 2.1;
+  border-left: 4px solid #ff9a9e;
+  box-shadow: 0 4px 15px rgba(255, 154, 158, 0.08);
+}
+
+.article-content :deep(.xiaohongshu-paragraph) {
+  margin-bottom: 32px;
+  text-align: left;
+  color: #555;
+  font-size: 16px;
+  line-height: 2.2;
+  text-indent: 2em;
+  padding: 0 8px;
+}
+
+.article-content :deep(.xiaohongshu-highlight) {
+  color: #ff69b4;
+  font-weight: 700;
+  background-color: rgba(255, 105, 180, 0.15);
+  padding: 3px 10px;
+  border-radius: 6px;
+  margin: 0 3px;
+  box-shadow: 0 2px 6px rgba(255, 105, 180, 0.2);
+}
+
+.article-content :deep(.xiaohongshu-pink) {
+  color: #ff69b4;
+  font-weight: 700;
+  background-color: rgba(255, 105, 180, 0.1);
+  padding: 2px 8px;
+  border-radius: 5px;
+}
+
+.article-content :deep(.xiaohongshu-bow) {
+  color: #ff1493;
+  font-weight: 700;
+  background: linear-gradient(45deg, #fff5f5, #ffe4e1);
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid #ffb6c1;
+  box-shadow: 0 2px 8px rgba(255, 105, 180, 0.2);
+  margin: 0 5px;
 }
 
 /* 文章操作区 */
@@ -597,7 +1042,7 @@ const shareArticle = () => {
     padding: 25px;
   }
   
-  .article-content h2 {
+  .article-content :deep(h2) {
     font-size: 22px;
   }
   
@@ -633,7 +1078,7 @@ const shareArticle = () => {
     font-size: 15px;
   }
   
-  .article-content h2 {
+  .article-content :deep(h2) {
     font-size: 20px;
   }
   
@@ -682,7 +1127,7 @@ const shareArticle = () => {
     font-size: 14px;
   }
   
-  .article-content h2 {
+  .article-content :deep(h2) {
     font-size: 18px;
   }
   
