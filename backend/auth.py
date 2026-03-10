@@ -93,3 +93,25 @@ def decode_access_token(token: str) -> Optional[dict]:
         return None
 
 
+def get_current_user_optional(token: Optional[str] = None) -> Optional[dict]:
+    """
+    获取可选的当前用户信息
+    
+    Args:
+        token: JWT访问令牌（可选）
+    
+    Returns:
+        Optional[dict]: 解码后的令牌数据，如果令牌无效或未提供则返回None
+    """
+    if not token:
+        return None
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        logger.debug(f"JWT令牌解码成功（可选），用户ID: {payload.get('sub')}")
+        return payload
+    except JWTError as e:
+        logger.debug(f"JWT令牌解码失败（可选）: {str(e)}")
+        return None
+
+

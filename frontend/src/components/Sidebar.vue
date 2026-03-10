@@ -1,7 +1,15 @@
 <template>
   <aside class="sidebar">
-    <!-- 分类导航 -->
-    <div class="sidebar-section">
+    <!-- 加载中状态 -->
+    <div v-if="loading" class="sidebar-section loading-state">
+      <h3 class="section-title">内容分类</h3>
+      <div class="loading-content">
+        <div class="skeleton-item" v-for="i in 4" :key="'cat-skeleton-' + i"></div>
+      </div>
+    </div>
+    
+    <!-- 分类导航（正常状态） -->
+    <div v-else-if="categories.length > 0" class="sidebar-section">
       <h3 class="section-title">内容分类</h3>
       <ul class="category-list">
         <li v-for="category in categories" :key="category.id">
@@ -13,8 +21,25 @@
       </ul>
     </div>
     
-    <!-- 热门文章 -->
-    <div class="sidebar-section">
+    <!-- 空状态 - 分类 -->
+    <div v-else class="sidebar-section empty-state">
+      <h3 class="section-title">内容分类</h3>
+      <div class="empty-content">
+        <div class="empty-icon">📚</div>
+        <p>暂无分类数据</p>
+      </div>
+    </div>
+    
+    <!-- 热门文章加载中 -->
+    <div v-if="loading" class="sidebar-section loading-state">
+      <h3 class="section-title">热门文章</h3>
+      <div class="loading-content">
+        <div class="skeleton-item article-skeleton" v-for="i in 3" :key="'hot-skeleton-' + i"></div>
+      </div>
+    </div>
+    
+    <!-- 热门文章（正常状态） -->
+    <div v-else-if="hotArticles.length > 0" class="sidebar-section">
       <h3 class="section-title">热门文章</h3>
         <ul class="hot-list">
           <li v-for="article in hotArticles" :key="article.id">
@@ -25,32 +50,83 @@
         </ul>
     </div>
     
-
-    
-    <!-- 推广广告 -->
-    <div class="sidebar-section">
-      <h3 class="section-title">特别推荐</h3>
-      <div class="advertisement">
-        <div class="ad-content">
-          <h4>获取专业工具包</h4>
-          <p>9.9元即可获得价值99元的专业工具包</p>
-          <button class="ad-btn" @click="buyNow">立即购买</button>
-        </div>
+    <!-- 空状态 - 热门文章 -->
+    <div v-else class="sidebar-section empty-state">
+      <h3 class="section-title">热门文章</h3>
+      <div class="empty-content">
+        <div class="empty-icon">🔥</div>
+        <p>暂无热门文章</p>
       </div>
     </div>
+    
+    <!-- 商品推荐 -->
+    <ProductRecommendation 
+      v-if="showProductRecommendations"
+      :mode="recommendationMode"
+      :article-id="currentArticleId"
+      :category="currentCategory"
+      :limit="2"
+    />
   </aside>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useContentStore } from '../stores/content'
+import ProductRecommendation from './ProductRecommendation.vue'
 
 const router = useRouter()
+const route = useRoute()
 const contentStore = useContentStore()
 
 // 定义事件，用于向父组件传递分类筛选请求
 const emit = defineEmits(['filter-category'])
+
+// 加载状态
+const loading = ref(false)
+
+// 是否显示商品推荐（根据环境变量控制）
+const showProductRecommendations = computed(() => {
+  return import.meta.env.VITE_SHOW_PRODUCT_RECOMMENDATIONS === 'true'
+})
+
+// 当前文章分类（用于显示相关商品推荐）
+const currentArticleCategory = computed(() => {
+  if (route.path.startsWith('/article/')) {
+    const articleId = route.params.id
+    const article = contentStore.articles.find(a => a.id === articleId)
+    return article?.category || null
+  }
+  return null
+})
+
+// 当前文章ID（用于AI推荐）
+const currentArticleId = computed(() => {
+  if (route.path.startsWith('/article/')) {
+    return parseInt(route.params.id)
+  }
+  return null
+})
+
+// 推荐模式：根据当前页面类型决定
+const recommendationMode = computed(() => {
+  if (route.path.startsWith('/article/')) {
+    return 'ai'
+  }
+  if (route.path === '/articles' && route.query.category) {
+    return 'category'
+  }
+  return 'history'
+})
+
+// 当前分类（用于分类推荐）
+const currentCategory = computed(() => {
+  if (route.path === '/articles' && route.query.category) {
+    return route.query.category
+  }
+  return null
+})
 
 // 分类列表 - 从实际文章数据动态生成
 const categories = ref([])
@@ -61,20 +137,17 @@ const updateCategoryCounts = () => {
   const articleCategories = contentStore.articles.map(a => a.category)
   const uniqueCategories = [...new Set(articleCategories)]
   
-  // 创建分类列表
-  categories.value = uniqueCategories.map((cat, index) => ({
-    id: index + 1,
-    name: cat,
-    count: 0
-  }))
-  
   // 统计每个分类的文章数量
-  contentStore.articles.forEach(article => {
-    const category = categories.value.find(c => c.name === article.category)
-    if (category) {
-      category.count++
+  const newCategories = uniqueCategories.map((cat, index) => {
+    const count = contentStore.articles.filter(a => a.category === cat).length
+    return {
+      id: index + 1,
+      name: cat,
+      count: count
     }
   })
+  
+  categories.value = newCategories
 }
 
 // 热门文章 - 从实际文章数据中获取前5篇
@@ -91,14 +164,23 @@ const hotArticles = computed(() => {
 
 
 // 组件挂载时加载数据并更新分类计数
-onMounted(() => {
-  // 如果还没有加载文章数据，则加载
-  if (contentStore.articles.length === 0) {
-    contentStore.fetchLatestArticles()
+onMounted(async () => {
+  loading.value = true
+  try {
+    // 如果还没有加载文章数据，则加载
+    if (contentStore.articles.length === 0) {
+      console.log('侧边栏：开始加载文章数据...')
+      await contentStore.fetchLatestArticles()
+      console.log('侧边栏：文章数据加载完成')
+    }
+    
+    // 更新分类计数
+    updateCategoryCounts()
+  } catch (error) {
+    console.error('侧边栏：加载数据失败:', error)
+  } finally {
+    loading.value = false
   }
-  
-  // 更新分类计数
-  updateCategoryCounts()
 })
 
 // 监听文章数据变化，更新分类计数
@@ -155,30 +237,6 @@ const navigateToArticle = (articleId) => {
   } catch (error) {
     console.error('navigateToArticle发生异常:', error)
   }
-}
-
-
-
-// 立即购买功能
-const buyNow = () => {
-  // 为广告创建一个模拟的商品对象
-  const mockToolkit = {
-    id: 999, // 模拟的工具包ID
-    title: '专业工具包',
-    type: 'toolkit',
-    price: 9.9
-  }
-  
-  // 跳转到支付页面，携带商品信息
-  router.push({
-    path: '/payment',
-    query: {
-      product_type: mockToolkit.type,
-      product_id: mockToolkit.id,
-      product_name: mockToolkit.title,
-      price: mockToolkit.price
-    }
-  })
 }
 </script>
 
@@ -343,45 +401,60 @@ const buyNow = () => {
   color: #FFD700;
 }
 
-/* 广告区域 */
-.advertisement {
-  background: linear-gradient(135deg, #FFF5F8 0%, #F0F8FF 100%);
-  padding: 25px 20px;
-  border-radius: 12px;
+/* 加载状态样式 */
+.loading-state {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading-content {
+  padding: 10px 0;
+}
+
+.skeleton-item {
+  height: 16px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.skeleton-item.article-skeleton {
+  height: 20px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* 空状态样式 */
+.empty-state {
   text-align: center;
-  border: 2px dashed var(--primary-color);
+  padding: 30px 15px;
 }
 
-.ad-content h4 {
-  font-size: 18px;
-  margin-bottom: 12px;
-  color: var(--primary-color);
-  font-weight: 600;
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
-.ad-content p {
-  font-size: 14px;
-  margin-bottom: 18px;
+.empty-icon {
+  font-size: 32px;
+  opacity: 0.6;
+}
+
+.empty-state p {
   color: var(--text-secondary);
-}
-
-.ad-btn {
-  background-color: var(--accent-color);
-  color: var(--text-primary);
-  border: none;
-  padding: 10px 25px;
-  border-radius: 25px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 15px;
-  box-shadow: var(--shadow-light);
-}
-
-.ad-btn:hover {
-  background-color: #FFC107;
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-medium);
+  font-size: 14px;
+  margin: 0;
 }
 
 /* 响应式设计 */
@@ -424,5 +497,4 @@ const buyNow = () => {
   .sidebar-section:last-child {
     margin-bottom: 0;
   }
-}
-</style>
+}</style>

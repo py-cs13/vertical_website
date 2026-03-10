@@ -1,5 +1,6 @@
 # 多阶段构建 Dockerfile - 后端应用
-FROM python:3.9-slim AS base
+# 使用阿里云Docker Hub镜像加速器，避免速率限制
+FROM registry.cn-beijing.aliyuncs.com/aliyunfc/runtime-python3.9:build-latest AS base
 
 # 设置环境变量
 ENV PYTHONDONTWRITEBYTECODE=1 \

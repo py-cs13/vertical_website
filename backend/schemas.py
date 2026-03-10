@@ -11,14 +11,14 @@ import re
 
 class UserBase(BaseModel):
     """用户基础模型，包含公共字段"""
-    username: str = Field(..., min_length=3, max_length=50, description="用户名")
+    username: str = Field(..., min_length=1, max_length=50, description="用户名")
     email: EmailStr = Field(..., description="邮箱地址")
     
     @validator('username')
     def username_alphanumeric(cls, v):
-        """验证用户名只能包含字母、数字和下划线"""
-        if not re.match(r'^[a-zA-Z0-9_]+$', v):
-            raise ValueError('用户名只能包含字母、数字和下划线')
+        """验证用户名只能包含字母、数字、下划线和中文字符"""
+        if v is not None and not re.match(r'^[a-zA-Z0-9_\u4e00-\u9fa5]+$', v):
+            raise ValueError('用户名只能包含字母、数字、下划线和中文字符')
         return v
 
 
@@ -51,7 +51,7 @@ class UserLogin(BaseModel):
 
 class UserUpdate(BaseModel):
     """用户信息更新请求模型"""
-    username: Optional[str] = Field(None, min_length=3, max_length=50, description="用户名")
+    username: Optional[str] = Field(None, min_length=1, max_length=50, description="用户名")
     email: Optional[EmailStr] = Field(None, description="邮箱地址")
     avatar: Optional[str] = Field(None)
     gender: Optional[str] = Field(None, max_length=10, description="性别")
@@ -65,9 +65,9 @@ class UserUpdate(BaseModel):
     
     @validator('username')
     def username_alphanumeric(cls, v):
-        """验证用户名只能包含字母、数字和下划线"""
-        if v is not None and not re.match(r'^[a-zA-Z0-9_]+$', v):
-            raise ValueError('用户名只能包含字母、数字和下划线')
+        """验证用户名只能包含字母、数字、下划线和中文字符"""
+        if v is not None and not re.match(r'^[a-zA-Z0-9_一-龥]+$', v):
+            raise ValueError('用户名只能包含字母、数字、下划线和中文字符')
         return v
 
 
@@ -432,3 +432,49 @@ class ContentWithLikeStatusResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+# 商品相关模型
+
+class ProductBase(BaseModel):
+    """商品基础模型，包含公共字段"""
+    name: str = Field(..., min_length=1, max_length=200, description="商品名称")
+    description: Optional[str] = Field(None, description="商品描述")
+    image_url: str = Field(..., min_length=1, max_length=500, description="商品图片URL")
+    link_url: str = Field(..., min_length=1, max_length=500, description="淘宝联盟链接")
+    price: float = Field(..., ge=0, description="商品价格")
+    category: str = Field(..., min_length=1, max_length=50, description="商品分类（对应8大分类）")
+
+
+class ProductCreate(ProductBase):
+    """商品创建请求模型"""
+    pass
+
+
+class ProductUpdate(BaseModel):
+    """商品更新请求模型"""
+    name: Optional[str] = Field(None, min_length=1, max_length=200, description="商品名称")
+    description: Optional[str] = Field(None, description="商品描述")
+    image_url: Optional[str] = Field(None, min_length=1, max_length=500, description="商品图片URL")
+    link_url: Optional[str] = Field(None, min_length=1, max_length=500, description="淘宝联盟链接")
+    price: Optional[float] = Field(None, ge=0, description="商品价格")
+    category: Optional[str] = Field(None, min_length=1, max_length=50, description="商品分类")
+    is_active: Optional[bool] = Field(None, description="是否上架")
+
+
+class ProductResponse(ProductBase):
+    """商品响应模型"""
+    id: int
+    is_active: bool
+    click_count: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class ProductListResponse(BaseModel):
+    """商品列表响应模型"""
+    products: List[ProductResponse]
+    total: int

@@ -61,8 +61,21 @@
             />
           </div>
           
+          <div class="form-group agreement-group">
+            <input 
+              type="checkbox" 
+              id="agreement" 
+              v-model="agreedToTerms"
+              required
+              class="agreement-checkbox"
+            />
+            <label for="agreement" class="agreement-label">
+              我已阅读并同意 <a href="/terms" target="_blank">用户协议</a> 和 <a href="/privacy" target="_blank">隐私政策</a>
+            </label>
+          </div>
+          
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary" :disabled="loading || password !== confirmPassword">
+            <button type="submit" class="btn btn-primary" :disabled="loading || password !== confirmPassword || !agreedToTerms">
               {{ loading ? '注册中...' : '注册' }}
             </button>
           </div>
@@ -103,8 +116,9 @@ const confirmPassword = ref('')
 const loading = ref(false)
 const error = ref('')
 const referralCode = ref('')
+const agreedToTerms = ref(false)
 
-// 组件挂载时重置表单数据和错误信息
+// 组件挂载时重置表单数据、错误信息，并滚动到页面顶部
 onMounted(() => {
   username.value = ''
   email.value = ''
@@ -118,6 +132,9 @@ onMounted(() => {
     referralCode.value = code
     console.log('获取到推广码:', code)
   }
+  
+  // 滚动到页面顶部
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 })
 
 // 处理注册
@@ -296,6 +313,39 @@ const handleRegister = async () => {
   color: #FF6B6B;
   font-size: 14px;
   text-align: center;
+}
+
+/* 协议勾选样式 */
+.agreement-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.agreement-checkbox {
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.agreement-label {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.agreement-label a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.agreement-label a:hover {
+  text-decoration: underline;
 }
 
 /* 响应式设计 */

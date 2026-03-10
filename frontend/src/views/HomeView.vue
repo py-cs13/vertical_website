@@ -72,7 +72,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import { apiClient } from '../utils/api'
+import { useContentStore } from '../stores'
+
+// 导入内容store
+const contentStore = useContentStore()
 
 // 推荐文章数据
 const recommendedArticles = ref([])
@@ -82,17 +86,26 @@ const loading = ref(true)
 const fetchRecommendedArticles = async () => {
   try {
     // 使用专门的最新文章接口
-    const token = localStorage.getItem('token')
     console.log('开始获取推荐文章...')
-    const response = await axios.get('/api/articles/latest?limit=3', {
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
-    })
+    const response = await apiClient.get('/articles/latest?limit=3')
     
     console.log('API响应:', response.data)
     
-    if (response.data && response.data.length > 0) {
+    // 处理不同的数据格式
+    let data = response.data
+    if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      data = response.data.data
+    } else if (response.data && Array.isArray(response.data)) {
+      data = response.data
+    } else {
+      console.error('API返回的不是数组格式:', response.data)
+      // 使用备选方案
+      throw new Error('API返回数据格式不正确')
+    }
+    
+    if (data && data.length > 0) {
       // 映射文章数据，去除HTML标签获取纯文本摘要
-      recommendedArticles.value = response.data.map(article => ({
+      recommendedArticles.value = data.map(article => ({
         id: article.id,
         title: article.title,
         category: article.category,
@@ -102,18 +115,71 @@ const fetchRecommendedArticles = async () => {
       console.log('推荐文章数据:', recommendedArticles.value)
     } else {
       console.log('没有获取到推荐文章数据')
+      // 使用备选方案
+      throw new Error('API返回空数据')
     }
   } catch (error) {
     console.error('获取推荐文章失败:', error)
     console.error('错误详情:', error.response?.data || error.message)
+    
+    // 如果contentStore中有数据，从中获取推荐文章
+    if (contentStore.articles.length > 0) {
+      console.log('从contentStore获取推荐文章')
+      recommendedArticles.value = contentStore.articles.slice(0, 3).map(article => ({
+        id: article.id,
+        title: article.title,
+        category: article.category,
+        summary: article.summary ? article.summary.replace(/<[^>]*>/g, '').substring(0, 80) + '...' : '',
+        created_at: article.created_at
+      }))
+    } else {
+      // 如果contentStore也没有数据，使用模拟数据
+      console.log('使用模拟推荐文章数据')
+      recommendedArticles.value = [
+        {
+          "id": 188,
+          "title": "👶宝宝肠胃敏感怎么办？肠道健康守护指南💪",
+          "category": "母婴育儿",
+          "summary": "本文分享了宝宝肠胃敏感的原因、症状和护理方法，包括饮食调理、日常护理和就医建议...",
+          "created_at": "2026-01-13T17:26:13"
+        },
+        {
+          "id": 189,
+          "title": "👶婴儿抚触按摩全攻略｜促进发育增进亲子关系的温柔时光💕",
+          "category": "育儿知识",
+          "summary": "详细介绍婴儿抚触按摩的步骤、技巧和注意事项，帮助新手父母通过抚触按摩促进宝宝的身体发育...",
+          "created_at": "2026-01-13T17:26:13"
+        },
+        {
+          "id": 190,
+          "title": "🍎孕期补铁全攻略｜告别贫血让孕期更健康💪",
+          "category": "营养辅食",
+          "summary": "分享孕期补铁的重要性、食物来源和补充方法，帮助准妈妈们预防和改善孕期贫血...",
+          "created_at": "2026-01-13T17:26:13"
+        }
+      ]
+    }
   } finally {
     loading.value = false
     console.log('加载状态:', loading.value)
   }
 }
 
-onMounted(() => {
-  fetchRecommendedArticles()
+onMounted(async () => {
+  await fetchRecommendedArticles()
+  
+  // 确保侧边栏有数据可用
+  if (contentStore.articles.length === 0) {
+    console.log('首页：侧边栏暂无数据，开始加载完整文章列表...')
+    try {
+      await contentStore.fetchLatestArticles()
+      console.log('首页：侧边栏数据加载完成')
+    } catch (error) {
+      console.error('首页：加载侧边栏数据失败:', error)
+    }
+  } else {
+    console.log('首页：侧边栏已有数据，无需重复加载')
+  }
 })
 </script>
 

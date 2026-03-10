@@ -244,6 +244,28 @@ export const updateOrderStatus = async (id, status) => {
   }
 }
 
+// 删除订单
+export const deleteOrder = async (id) => {
+  try {
+    const response = await apiClient.delete(`/admin/orders/${id}`)
+    return response.data
+  } catch (error) {
+    console.error(`删除订单失败 (ID: ${id}):`, error)
+    throw error
+  }
+}
+
+// 批量删除订单
+export const batchDeleteOrders = async (ids) => {
+  try {
+    const response = await apiClient.delete('/admin/orders', { data: { ids } })
+    return response.data
+  } catch (error) {
+    console.error('批量删除订单失败:', error)
+    throw error
+  }
+}
+
 // ========================= 推广统计API =========================
 
 // 获取推广统计数据
@@ -327,6 +349,39 @@ export const exportAffiliateStats = async (params = {}) => {
 }
 
 // ========================= 智能体API =========================
+
+// 获取佣金列表
+export const getCommissions = async (params = {}) => {
+  try {
+    const response = await apiClient.get('/admin/commissions', { params })
+    return response.data
+  } catch (error) {
+    console.error('获取佣金列表失败:', error)
+    throw error
+  }
+}
+
+// 获取佣金详情
+export const getCommissionDetail = async (id) => {
+  try {
+    const response = await apiClient.get(`/admin/commissions/${id}`)
+    return response.data
+  } catch (error) {
+    console.error(`获取佣金详情失败 (ID: ${id}):`, error)
+    throw error
+  }
+}
+
+// 更新佣金状态
+export const updateCommissionStatus = async (id, status) => {
+  try {
+    const response = await apiClient.patch(`/admin/commissions/${id}/status`, { status })
+    return response.data
+  } catch (error) {
+    console.error(`更新佣金状态失败 (ID: ${id}):`, error)
+    throw error
+  }
+}
 
 // 下载智能体
 export const downloadAgent = async (agentId) => {

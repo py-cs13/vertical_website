@@ -38,7 +38,7 @@
         </div>
       </div>
 
-      <!-- 总工具包数 -->
+      <!-- 总智能体数 -->
       <div class="stat-card">
         <div class="stat-icon toolkit-icon">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -47,9 +47,9 @@
           </svg>
         </div>
         <div class="stat-content">
-          <h3>总工具包数</h3>
-          <p class="stat-value">{{ totalToolkits }}</p>
-          <p class="stat-change">+{{ toolkitGrowth }}% 较上月</p>
+          <h3>总智能体数</h3>
+          <p class="stat-value">{{ totalAgents }}</p>
+          <p class="stat-change">+{{ agentGrowth }}% 较上月</p>
         </div>
       </div>
 
@@ -64,6 +64,21 @@
           <h3>总订单数</h3>
           <p class="stat-value">{{ totalOrders }}</p>
           <p class="stat-change">+{{ orderGrowth }}% 较上月</p>
+        </div>
+      </div>
+
+      <!-- 总浏览量 -->
+      <div class="stat-card">
+        <div class="stat-icon view-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </div>
+        <div class="stat-content">
+          <h3>总浏览量</h3>
+          <p class="stat-value">{{ totalViews }}</p>
+          <p class="stat-change">累计浏览次数</p>
         </div>
       </div>
     </div>
@@ -139,70 +154,153 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useContentStore, useAuthStore } from '../../stores/index.js'
+import apiClient from '../../utils/api'
 
 const contentStore = useContentStore()
 const authStore = useAuthStore()
 
+// 检查用户登录状态和管理员权限
+const currentUser = computed(() => authStore.currentUser)
+const isAdmin = computed(() => authStore.isAdmin)
+const isAuthenticated = computed(() => authStore.isAuthenticated)
+
 // 时间范围选择
 const timeRange = ref('week')
 
-// 统计数据（模拟）
-const totalUsers = ref(1280)
-const totalArticles = ref(542)
-const totalToolkits = ref(85)
-const totalOrders = ref(1235)
+// 统计数据
+const totalUsers = ref(0)
+const totalArticles = ref(0)
+const totalAgents = ref(0)
+const totalOrders = ref(0)
+const totalViews = ref(0)
 
-// 增长率（模拟）
-const userGrowth = ref(12.5)
-const articleGrowth = ref(8.3)
-const toolkitGrowth = ref(25.7)
-const orderGrowth = ref(18.9)
+// 增长率
+const userGrowth = ref(0)
+const articleGrowth = ref(0)
+const agentGrowth = ref(0)
+const orderGrowth = ref(0)
 
-// 推广统计数据（模拟）
-const totalClicks = ref(5678)
-const totalCommission = ref(23456.78)
-const totalAffiliates = ref(342)
-const conversionRate = ref(4.2)
+// 推广统计数据
+const totalClicks = ref(0)
+const totalCommission = ref(0)
+const totalAffiliates = ref(0)
+const conversionRate = ref(0)
 
-// 最近活动（模拟）
-const recentActivities = ref([
-  {
-    iconClass: 'user-activity',
-    iconPath: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2',
-    text: '用户 "张三" 注册成功',
-    time: '刚刚'
-  },
-  {
-    iconClass: 'order-activity',
-    iconPath: 'M18 8h1a4 4 0 0 1 0 8h-1',
-    text: '用户 "李四" 购买了 "新生儿护理工具包"',
-    time: '15分钟前'
-  },
-  {
-    iconClass: 'article-activity',
-    iconPath: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20',
-    text: '文章 "如何科学安排孕期饮食" 被发布',
-    time: '1小时前'
-  },
-  {
-    iconClass: 'affiliate-activity',
-    iconPath: 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71',
-    text: '推广链接 "ref=abc123" 产生了1笔订单',
-    time: '2小时前'
-  },
-  {
-    iconClass: 'user-activity',
-    iconPath: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2',
-    text: '用户 "王五" 升级为VIP',
-    time: '3小时前'
+// 最近活动
+const recentActivities = ref([])
+
+// 获取统计数据
+const fetchDashboardStats = async () => {
+  try {
+    console.log('开始获取统计数据...')
+    console.log('当前用户:', currentUser.value)
+    console.log('是否已登录:', isAuthenticated.value)
+    console.log('是否为管理员:', isAdmin.value)
+
+    // 检查用户是否登录和管理员权限
+    if (!isAuthenticated.value) {
+      console.error('用户未登录')
+      return
+    }
+
+    if (!isAdmin.value) {
+      console.error('用户没有管理员权限')
+      return
+    }
+
+    // 获取用户总数
+    try {
+      const usersResponse = await apiClient.get('/admin/users', { params: { limit: 10000 } })
+      console.log('用户API响应:', usersResponse.data)
+      totalUsers.value = usersResponse.data.total || usersResponse.data.data?.length || 0
+      console.log('用户总数:', totalUsers.value)
+    } catch (error) {
+      console.error('获取用户总数失败:', error.response?.data || error.message)
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.error('用户未登录或没有管理员权限')
+      }
+    }
+
+    // 获取文章总数
+    try {
+      const articlesResponse = await apiClient.get('/articles')
+      console.log('文章API响应:', articlesResponse.data)
+      totalArticles.value = Array.isArray(articlesResponse.data) ? articlesResponse.data.length : articlesResponse.data.data?.length || 0
+      console.log('文章总数:', totalArticles.value)
+    } catch (error) {
+      console.error('获取文章总数失败:', error.response?.data || error.message)
+    }
+
+    // 获取智能体总数
+    try {
+      const agentsResponse = await apiClient.get('/agents')
+      console.log('智能体API响应:', agentsResponse.data)
+      totalAgents.value = Array.isArray(agentsResponse.data) ? agentsResponse.data.length : agentsResponse.data.data?.length || 0
+      console.log('智能体总数:', totalAgents.value)
+    } catch (error) {
+      console.error('获取智能体总数失败:', error.response?.data || error.message)
+    }
+
+    // 获取订单总数
+    try {
+      const ordersResponse = await apiClient.get('/admin/orders', { params: { limit: 10000 } })
+      console.log('订单API响应:', ordersResponse.data)
+      totalOrders.value = ordersResponse.data.total || ordersResponse.data.data?.length || 0
+      console.log('订单总数:', totalOrders.value)
+    } catch (error) {
+      console.error('获取订单总数失败:', error.response?.data || error.message)
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.error('用户未登录或没有管理员权限')
+      }
+    }
+
+    // 获取推广统计
+    try {
+      const affiliateResponse = await apiClient.get('/admin/affiliate/stats')
+      console.log('推广统计API响应:', affiliateResponse.data)
+      const stats = affiliateResponse.data
+      totalClicks.value = stats.total_clicks || 0
+      totalCommission.value = stats.total_commission || 0
+      totalAffiliates.value = stats.total_affiliates || 0
+      conversionRate.value = stats.conversion_rate || 0
+      console.log('推广统计:', { totalClicks: totalClicks.value, totalCommission: totalCommission.value })
+    } catch (error) {
+      console.error('获取推广统计失败:', error.response?.data || error.message)
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.error('用户未登录或没有管理员权限')
+      }
+    }
+
+    // 获取内容统计（包括总浏览量）
+    try {
+      const contentResponse = await apiClient.get('/admin/content/stats')
+      console.log('内容统计API响应:', contentResponse.data)
+      const contentStats = contentResponse.data
+      totalViews.value = contentStats.total_views || 0
+      console.log('内容统计:', { totalViews: totalViews.value })
+    } catch (error) {
+      console.error('获取内容统计失败:', error.response?.data || error.message)
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.error('用户未登录或没有管理员权限')
+      }
+    }
+
+    console.log('统计数据加载完成:', {
+      totalUsers: totalUsers.value,
+      totalArticles: totalArticles.value,
+      totalAgents: totalAgents.value,
+      totalOrders: totalOrders.value
+    })
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
   }
-])
+}
 
 // 页面加载时获取数据
 onMounted(() => {
-  // 这里可以添加获取实际数据的API调用
+  fetchDashboardStats()
   console.log('仪表盘页面加载完成')
 })
 </script>
@@ -279,6 +377,10 @@ onMounted(() => {
 
 .order-icon {
   background-color: #f56c6c;
+}
+
+.view-icon {
+  background-color: #909399;
 }
 
 .stat-content h3 {

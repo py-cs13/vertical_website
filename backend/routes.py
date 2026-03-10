@@ -4,6 +4,7 @@
 from fastapi import APIRouter, Depends, status, Request, UploadFile, File, Body, Query
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import timedelta, date
 from typing import List, Optional
 import os
@@ -24,10 +25,11 @@ from schemas import (
     PasswordResetRequest, PasswordReset, MessageResponse,
     OrderCreate, OrderResponse, OrderListResponse, PaymentRequest, PaymentResponse, PaymentCallback, OrderItemCreate,
     FavoriteCreate, FavoriteResponse, FavoriteContentResponse, FavoriteListResponse, ContentWithLikedResponse,
-    LikeCreate, LikeResponse, LikeStatusResponse, ContentWithLikeStatusResponse
+    LikeCreate, LikeResponse, LikeStatusResponse, ContentWithLikeStatusResponse,
+    ProductCreate, ProductUpdate, ProductResponse, ProductListResponse
 )
 from auth import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
-from dependencies import get_current_active_user, get_current_admin_user
+from dependencies import get_current_active_user, get_current_admin_user, get_current_user_optional
 from logging_config import get_logger
 from errors import ConflictError, BadRequestError, ResourceNotFoundError, AuthorizationError
 from payment import create_order, get_order, get_user_orders, process_payment, handle_payment_callback, cancel_order, get_order_by_number, check_user_purchased_agent
@@ -61,24 +63,6 @@ async def get_csrf_token(csrf_protect: CsrfProtect = Depends()):
 
 
 # 用户认证相关路由
-
-# 检查管理员权限的辅助函数
-def check_admin_user(user: User = Depends(get_current_active_user)) -> bool:
-    """
-    检查用户是否为管理员
-    
-    Args:
-        user: 当前活跃的用户对象
-    
-    Returns:
-        bool: 如果是管理员返回True
-    
-    Raises:
-        AuthorizationError: 如果不是管理员
-    """
-    if not user.is_admin:
-        raise AuthorizationError(message="无权访问", details="需要管理员权限才能访问此资源")
-    return True
 
 @router.post("/api/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(RateLimiter(times=5, seconds=60))])
 def register_user(user: UserCreate, request: Request, db: Session = Depends(get_db)):
@@ -662,13 +646,18 @@ def get_content_list(
 
 
 @router.get("/api/content/{content_id}", response_model=ContentResponse)
-def get_content_detail(content_id: int, db: Session = Depends(get_db)):
+def get_content_detail(
+    content_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional)
+):
     """
     获取内容详情接口
     
     Args:
         content_id: 内容ID
         db: 数据库会话
+        current_user: 当前用户（可选）
     
     Returns:
         ContentResponse: 内容详情
@@ -689,6 +678,26 @@ def get_content_detail(content_id: int, db: Session = Depends(get_db)):
     
     # 更新浏览量
     content.view_count += 1
+    
+    # 记录浏览历史
+    from models import ViewHistory
+    import uuid
+    
+    if current_user:
+        # 已登录用户，记录用户ID
+        existing_history = db.query(ViewHistory).filter(
+            ViewHistory.user_id == current_user.id,
+            ViewHistory.article_id == content_id
+        ).first()
+        
+        if not existing_history:
+            view_history = ViewHistory(
+                user_id=current_user.id,
+                article_id=content_id,
+                session_id=None
+            )
+            db.add(view_history)
+            logger.info(f"记录用户浏览历史: 用户ID={current_user.id}, 文章ID={content_id}")
     
     # 移除内容中的字数统计信息
     import re
@@ -1608,7 +1617,6 @@ async def get_affiliate_stats(db: Session = Depends(get_db), current_user: User 
     click_count = db.query(func.count(AffiliateClick.id)).filter(AffiliateClick.affiliate_link_id == link.id).scalar()
     
     # 计算佣金总额
-    from sqlalchemy import func
     commission_total = db.query(func.sum(AffiliateCommission.amount)).filter(
         AffiliateCommission.affiliate_link_id == link.id,
         AffiliateCommission.status == "paid"
@@ -1737,9 +1745,6 @@ def create_admin_content(
     Returns:
         JSONResponse: 创建结果
     """
-    # 检查管理员权限
-    check_admin_user()
-    
     new_content = Content(
         title=content_data.title,
         category=content_data.category,
@@ -1779,9 +1784,6 @@ def update_admin_content(
     Returns:
         JSONResponse: 更新结果
     """
-    # 检查管理员权限
-    check_admin_user()
-    
     content = db.query(Content).filter(Content.id == content_id).first()
     
     if not content:
@@ -1824,9 +1826,6 @@ def delete_admin_content(
     Returns:
         JSONResponse: 删除结果
     """
-    # 检查管理员权限
-    check_admin_user()
-    
     content = db.query(Content).filter(Content.id == content_id).first()
     
     if not content:
@@ -1863,9 +1862,6 @@ def get_admin_users(
     Returns:
         JSONResponse: 用户列表
     """
-    # 检查管理员权限
-    check_admin_user()
-    
     query = db.query(User)
     
     if is_active is not None:
@@ -1909,9 +1905,6 @@ def update_admin_user(
     Returns:
         JSONResponse: 更新结果
     """
-    # 检查管理员权限
-    check_admin_user()
-    
     user = db.query(User).filter(User.id == user_id).first()
     
     if not user:
@@ -1965,9 +1958,6 @@ def get_admin_orders(
     Returns:
         JSONResponse: 订单列表
     """
-    # 检查管理员权限
-    check_admin_user()
-    
     query = db.query(Order)
     
     if status:
@@ -2017,9 +2007,6 @@ def get_admin_order_detail(
     Returns:
         JSONResponse: 订单详情
     """
-    # 检查管理员权限
-    check_admin_user()
-    
     order = db.query(Order).filter(Order.id == order_id).first()
     
     if not order:
@@ -2069,9 +2056,6 @@ def get_admin_affiliate_stats(
     Returns:
         JSONResponse: 推广统计数据
     """
-    # 检查管理员权限
-    check_admin_user()
-    
     # 基础查询条件
     click_query = db.query(AffiliateClick)
     commission_query = db.query(AffiliateCommission)
@@ -2142,9 +2126,6 @@ def get_admin_top_affiliate_users(
     Returns:
         JSONResponse: 推广用户排名
     """
-    # 检查管理员权限
-    check_admin_user()
-    
     # 构建查询
     query = db.query(
         User.id,
@@ -2183,6 +2164,48 @@ def get_admin_top_affiliate_users(
             "commission_count": user.commission_count,
             "total_commission_amount": float(user.total_commission_amount or 0)
         } for user in top_users]
+    })
+
+
+# 内容统计API
+
+@router.get("/api/admin/content/stats", dependencies=[Depends(get_current_admin_user)])
+def get_admin_content_stats(
+    db: Session = Depends(get_db)
+):
+    """
+    获取内容统计数据（管理后台）
+    
+    Args:
+        db: 数据库会话
+    
+    Returns:
+        JSONResponse: 内容统计数据
+    """
+    # 统计总浏览量
+    total_views = db.query(func.sum(Content.view_count)).scalar() or 0
+    
+    # 统计总点赞数
+    total_likes = db.query(func.sum(Content.likes)).scalar() or 0
+    
+    # 统计各分类的内容数量
+    category_counts = db.query(
+        Content.category,
+        func.count(Content.id)
+    ).group_by(Content.category).all()
+    
+    # 转换结果格式
+    category_stats = {}
+    for category, count in category_counts:
+        category_stats[category] = count
+    
+    return JSONResponse({
+        "status": "success",
+        "data": {
+            "total_views": int(total_views),
+            "total_likes": int(total_likes),
+            "category_stats": category_stats
+        }
     })
 
 
@@ -2413,3 +2436,540 @@ def get_content_with_status(
     
     logger.info(f"获取内容详情（带状态）成功: 内容ID={content_id}, is_collected={is_collected}")
     return result
+
+
+# 商品管理相关路由
+
+@router.post("/api/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(get_current_admin_user)])
+def create_product(
+    product: ProductCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    创建商品（管理员权限）
+    
+    Args:
+        product: 商品创建请求数据
+        db: 数据库会话
+        current_user: 当前认证的管理员用户
+    
+    Returns:
+        ProductResponse: 创建成功的商品信息
+    """
+    from models import Product
+    
+    logger.info(f"创建商品请求: 商品名称={product.name}, 分类={product.category}")
+    
+    db_product = Product(
+        name=product.name,
+        description=product.description,
+        image_url=product.image_url,
+        link_url=product.link_url,
+        price=product.price,
+        category=product.category,
+        is_active=True
+    )
+    
+    db.add(db_product)
+    db.commit()
+    db.refresh(db_product)
+    
+    logger.info(f"创建商品成功: 商品ID={db_product.id}, 商品名称={product.name}")
+    return db_product
+
+
+@router.get("/api/products", response_model=ProductListResponse)
+def get_products(
+    category: Optional[str] = Query(None, description="商品分类"),
+    is_active: Optional[bool] = Query(True, description="是否只查询上架商品"),
+    limit: Optional[int] = Query(10, description="返回数量限制"),
+    page: Optional[int] = Query(1, description="页码，默认1"),
+    page_size: Optional[int] = Query(12, description="每页数量，默认12"),
+    sort_by: Optional[str] = Query("created_at", description="排序方式：created_at/price_asc/price_desc/click_count"),
+    db: Session = Depends(get_db)
+):
+    """
+    获取商品列表
+    
+    Args:
+        category: 商品分类（可选）
+        is_active: 是否只查询上架商品（默认True）
+        limit: 返回数量限制（默认10，用于兼容旧版本）
+        page: 页码（默认1）
+        page_size: 每页数量（默认12）
+        sort_by: 排序方式（默认created_at）
+        db: 数据库会话
+    
+    Returns:
+        ProductListResponse: 商品列表
+    """
+    from models import Product
+    
+    logger.info(f"获取商品列表请求: 分类={category}, is_active={is_active}, page={page}, page_size={page_size}, sort_by={sort_by}")
+    
+    query = db.query(Product)
+    
+    if category:
+        query = query.filter(Product.category == category)
+    
+    if is_active is not None:
+        query = query.filter(Product.is_active == is_active)
+    
+    if sort_by == "price_asc":
+        query = query.order_by(Product.price.asc())
+    elif sort_by == "price_desc":
+        query = query.order_by(Product.price.desc())
+    elif sort_by == "click_count":
+        query = query.order_by(Product.click_count.desc())
+    else:
+        query = query.order_by(Product.created_at.desc())
+    
+    total = query.count()
+    
+    if limit:
+        products = query.limit(limit).all()
+    else:
+        offset = (page - 1) * page_size
+        products = query.offset(offset).limit(page_size).all()
+    
+    logger.info(f"获取商品列表成功: 总数={total}, 返回数={len(products)}")
+    return ProductListResponse(products=products, total=total)
+
+
+@router.get("/api/products/recommend", response_model=List[ProductResponse])
+def get_recommend_products(
+    category: str = Query(..., description="商品分类"),
+    limit: int = Query(2, description="推荐数量，默认2"),
+    db: Session = Depends(get_db)
+):
+    """
+    根据分类随机推荐商品
+    
+    Args:
+        category: 商品分类（必须）
+        limit: 推荐数量（默认2）
+        db: 数据库会话
+    
+    Returns:
+        List[ProductResponse]: 随机推荐的商品列表
+    """
+    from models import Product
+    import random
+    
+    logger.info(f"获取推荐商品请求: 分类={category}, 数量={limit}")
+    
+    products = db.query(Product).filter(
+        Product.category == category,
+        Product.is_active == True
+    ).all()
+    
+    if not products:
+        logger.warning(f"该分类下没有商品: 分类={category}")
+        return []
+    
+    recommended = random.sample(products, min(limit, len(products)))
+    
+    logger.info(f"获取推荐商品成功: 分类={category}, 返回数={len(recommended)}")
+    return recommended
+
+
+@router.get("/api/products/recommend-by-content", response_model=List[ProductResponse])
+def recommend_products_by_content(
+    article_id: int = Query(..., description="文章ID"),
+    limit: int = Query(2, description="推荐数量，默认2"),
+    db: Session = Depends(get_db)
+):
+    """
+    基于AI分析的文章内容推荐商品
+    
+    Args:
+        article_id: 文章ID
+        limit: 推荐数量（默认2）
+        db: 数据库会话
+    
+    Returns:
+        List[ProductResponse]: 推荐的商品列表
+    """
+    from models import Content
+    from content_generator import DeepSeekGenerator
+    from product_matcher import ProductMatcher
+    
+    logger.info(f"基于内容推荐商品请求: 文章ID={article_id}, 数量={limit}")
+    
+    article = db.query(Content).filter(Content.id == article_id).first()
+    if not article:
+        logger.warning(f"文章不存在: 文章ID={article_id}")
+        return []
+    
+    try:
+        generator = DeepSeekGenerator()
+        analysis_result = generator.analyze_for_product_recommendation(
+            article_title=article.title,
+            article_content=article.content,
+            article_category=article.category
+        )
+        
+        if not analysis_result:
+            logger.warning(f"AI分析失败，降级为基于分类推荐")
+            products = db.query(Content.__table__.c if hasattr(Content.__table__.c, 'category') else None)
+            if hasattr(Content.__table__.c, 'category'):
+                from models import Product
+                products = db.query(Product).filter(
+                    Product.category == article.category,
+                    Product.is_active == True
+                ).limit(limit).all()
+            else:
+                from models import Product
+                products = db.query(Product).filter(
+                    Product.is_active == True
+                ).limit(limit).all()
+            return products
+        
+        logger.info(f"AI分析结果: {analysis_result}")
+        
+        matcher = ProductMatcher(db)
+        products = matcher.match_products(analysis_result, limit)
+        
+        if not products:
+            logger.warning(f"AI匹配无结果，降级为基于分类推荐")
+            from models import Product
+            products = db.query(Product).filter(
+                Product.category == article.category,
+                Product.is_active == True
+            ).limit(limit).all()
+        
+        logger.info(f"基于内容推荐商品成功: 文章ID={article_id}, 返回数={len(products)}")
+        return products
+        
+    except Exception as e:
+        logger.error(f"基于内容推荐商品失败: {e}")
+        from models import Product
+        products = db.query(Product).filter(
+            Product.category == article.category,
+            Product.is_active == True
+        ).limit(limit).all()
+        return products
+
+
+@router.get("/api/products/recommend-by-history", response_model=List[ProductResponse])
+def recommend_products_by_history(
+    limit: int = Query(4, description="推荐数量，默认4"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_optional)
+):
+    """
+    基于用户浏览历史推荐商品
+    
+    Args:
+        limit: 推荐数量（默认4）
+        db: 数据库会话
+        current_user: 当前用户（可选）
+    
+    Returns:
+        List[ProductResponse]: 推荐的商品列表
+    """
+    from models import ViewHistory, Content
+    from content_generator import DeepSeekGenerator
+    from product_matcher import ProductMatcher
+    
+    logger.info(f"基于浏览历史推荐商品请求: 用户ID={current_user.id if current_user else None}, 数量={limit}")
+    
+    # 未登录用户，返回随机推荐
+    if not current_user:
+        logger.info("用户未登录，返回随机推荐")
+        from models import Product
+        products = db.query(Product).filter(
+            Product.is_active == True
+        ).order_by(func.random()).limit(limit).all()
+        return products
+    
+    # 获取用户最近浏览的文章
+    recent_articles = db.query(ViewHistory).filter(
+        ViewHistory.user_id == current_user.id
+    ).order_by(ViewHistory.viewed_at.desc()).limit(5).all()
+    
+    if not recent_articles:
+        logger.info(f"用户无浏览历史，返回热门推荐: 用户ID={current_user.id}")
+        from models import Product
+        products = db.query(Product).filter(
+            Product.is_active == True
+        ).order_by(Product.click_count.desc()).limit(limit).all()
+        return products
+    
+    # 获取最近浏览的文章内容
+    article_ids = [h.article_id for h in recent_articles]
+    articles = db.query(Content).filter(
+        Content.id.in_(article_ids)
+    ).all()
+    
+    if not articles:
+        logger.warning(f"浏览历史中的文章不存在: 用户ID={current_user.id}")
+        from models import Product
+        products = db.query(Product).filter(
+            Product.is_active == True
+        ).order_by(Product.click_count.desc()).limit(limit).all()
+        return products
+    
+    # 使用最近浏览的文章进行AI分析
+    try:
+        generator = DeepSeekGenerator()
+        
+        # 合并最近浏览的文章内容进行分析
+        combined_title = articles[0].title
+        combined_content = "\n\n".join([f"文章{i+1}: {a.title}\n{a.summary}" for i, a in enumerate(articles)])
+        combined_category = articles[0].category
+        
+        analysis_result = generator.analyze_for_product_recommendation(
+            article_title=combined_title,
+            article_content=combined_content,
+            article_category=combined_category
+        )
+        
+        if not analysis_result:
+            logger.warning(f"AI分析失败，降级为热门推荐: 用户ID={current_user.id}")
+            from models import Product
+            products = db.query(Product).filter(
+                Product.is_active == True
+            ).order_by(Product.click_count.desc()).limit(limit).all()
+            return products
+        
+        logger.info(f"AI分析结果（基于浏览历史）: {analysis_result}")
+        
+        matcher = ProductMatcher(db)
+        products = matcher.match_products(analysis_result, limit)
+        
+        if not products:
+            logger.warning(f"AI匹配无结果，降级为热门推荐: 用户ID={current_user.id}")
+            from models import Product
+            products = db.query(Product).filter(
+                Product.is_active == True
+            ).order_by(Product.click_count.desc()).limit(limit).all()
+        
+        logger.info(f"基于浏览历史推荐商品成功: 用户ID={current_user.id}, 返回数={len(products)}")
+        return products
+        
+    except Exception as e:
+        logger.error(f"基于浏览历史推荐商品失败: {e}")
+        from models import Product
+        products = db.query(Product).filter(
+            Product.is_active == True
+        ).order_by(Product.click_count.desc()).limit(limit).all()
+        return products
+
+
+@router.get("/api/products/recommend-by-popular", response_model=List[ProductResponse])
+def recommend_products_by_popular(
+    limit: int = Query(4, description="推荐数量，默认4"),
+    db: Session = Depends(get_db)
+):
+    """
+    基于热门文章内容推荐商品
+    
+    Args:
+        limit: 推荐数量（默认4）
+        db: 数据库会话
+    
+    Returns:
+        List[ProductResponse]: 推荐的商品列表
+    """
+    from models import Content
+    from content_generator import DeepSeekGenerator
+    from product_matcher import ProductMatcher
+    
+    logger.info(f"基于热门文章推荐商品请求: 数量={limit}")
+    
+    # 获取热门文章（按浏览量排序）
+    popular_articles = db.query(Content).filter(
+        Content.is_published == True
+    ).order_by(Content.view_count.desc()).limit(5).all()
+    
+    if not popular_articles:
+        logger.warning("没有找到热门文章，返回热门商品")
+        from models import Product
+        products = db.query(Product).filter(
+            Product.is_active == True
+        ).order_by(Product.click_count.desc()).limit(limit).all()
+        return products
+    
+    # 使用热门文章进行AI分析
+    try:
+        generator = DeepSeekGenerator()
+        
+        # 合并热门文章内容进行分析
+        combined_title = popular_articles[0].title
+        combined_content = "\n\n".join([f"文章{i+1}: {a.title}\n{a.summary}" for i, a in enumerate(popular_articles)])
+        combined_category = popular_articles[0].category
+        
+        analysis_result = generator.analyze_for_product_recommendation(
+            article_title=combined_title,
+            article_content=combined_content,
+            article_category=combined_category
+        )
+        
+        if not analysis_result:
+            logger.warning("AI分析失败，降级为热门商品")
+            from models import Product
+            products = db.query(Product).filter(
+                Product.is_active == True
+            ).order_by(Product.click_count.desc()).limit(limit).all()
+            return products
+        
+        logger.info(f"AI分析结果（基于热门文章）: {analysis_result}")
+        
+        matcher = ProductMatcher(db)
+        products = matcher.match_products(analysis_result, limit)
+        
+        if not products:
+            logger.warning("AI匹配无结果，降级为热门商品")
+            from models import Product
+            products = db.query(Product).filter(
+                Product.is_active == True
+            ).order_by(Product.click_count.desc()).limit(limit).all()
+        
+        logger.info(f"基于热门文章推荐商品成功: 返回数={len(products)}")
+        return products
+        
+    except Exception as e:
+        logger.error(f"基于热门文章推荐商品失败: {e}")
+        from models import Product
+        products = db.query(Product).filter(
+            Product.is_active == True
+        ).order_by(Product.click_count.desc()).limit(limit).all()
+        return products
+
+
+@router.get("/api/products/{product_id}", response_model=ProductResponse)
+def get_product(
+    product_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    获取商品详情
+    
+    Args:
+        product_id: 商品ID
+        db: 数据库会话
+    
+    Returns:
+        ProductResponse: 商品详情
+    """
+    from models import Product
+    
+    logger.info(f"获取商品详情请求: 商品ID={product_id}")
+    
+    product = db.query(Product).filter(Product.id == product_id).first()
+    
+    if not product:
+        logger.warning(f"商品不存在: 商品ID={product_id}")
+        raise ResourceNotFoundError(message="商品不存在", details={"product_id": product_id})
+    
+    logger.info(f"获取商品详情成功: 商品ID={product_id}")
+    return product
+
+
+@router.put("/api/products/{product_id}", response_model=ProductResponse, dependencies=[Depends(get_current_admin_user)])
+def update_product(
+    product_id: int,
+    product_update: ProductUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    更新商品（管理员权限）
+    
+    Args:
+        product_id: 商品ID
+        product_update: 商品更新请求数据
+        db: 数据库会话
+        current_user: 当前认证的管理员用户
+    
+    Returns:
+        ProductResponse: 更新后的商品信息
+    """
+    from models import Product
+    
+    logger.info(f"更新商品请求: 商品ID={product_id}")
+    
+    product = db.query(Product).filter(Product.id == product_id).first()
+    
+    if not product:
+        logger.warning(f"商品不存在: 商品ID={product_id}")
+        raise ResourceNotFoundError(message="商品不存在", details={"product_id": product_id})
+    
+    update_data = product_update.dict(exclude_unset=True)
+    
+    for key, value in update_data.items():
+        setattr(product, key, value)
+    
+    db.commit()
+    db.refresh(product)
+    
+    logger.info(f"更新商品成功: 商品ID={product_id}")
+    return product
+
+
+@router.delete("/api/products/{product_id}", response_model=MessageResponse, dependencies=[Depends(get_current_admin_user)])
+def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    删除商品（管理员权限）
+    
+    Args:
+        product_id: 商品ID
+        db: 数据库会话
+        current_user: 当前认证的管理员用户
+    
+    Returns:
+        MessageResponse: 删除成功消息
+    """
+    from models import Product
+    
+    logger.info(f"删除商品请求: 商品ID={product_id}")
+    
+    product = db.query(Product).filter(Product.id == product_id).first()
+    
+    if not product:
+        logger.warning(f"商品不存在: 商品ID={product_id}")
+        raise ResourceNotFoundError(message="商品不存在", details={"product_id": product_id})
+    
+    db.delete(product)
+    db.commit()
+    
+    logger.info(f"删除商品成功: 商品ID={product_id}")
+    return MessageResponse(message="商品删除成功")
+
+
+@router.post("/api/products/{product_id}/click", response_model=MessageResponse)
+def record_product_click(
+    product_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    记录商品点击次数
+    
+    Args:
+        product_id: 商品ID
+        db: 数据库会话
+    
+    Returns:
+        MessageResponse: 记录成功消息
+    """
+    from models import Product
+    
+    logger.info(f"记录商品点击: 商品ID={product_id}")
+    
+    product = db.query(Product).filter(Product.id == product_id).first()
+    
+    if not product:
+        logger.warning(f"商品不存在: 商品ID={product_id}")
+        raise ResourceNotFoundError(message="商品不存在", details={"product_id": product_id})
+    
+    product.click_count += 1
+    db.commit()
+    
+    logger.info(f"记录商品点击成功: 商品ID={product_id}, 点击次数={product.click_count}")
+    return MessageResponse(message="点击记录成功")

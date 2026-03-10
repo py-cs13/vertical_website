@@ -299,6 +299,82 @@ class DeepSeekGenerator:
             keywords=keywords
         )
     
+    def analyze_for_product_recommendation(self, article_title: str, article_content: str, article_category: str) -> Optional[Dict[str, Any]]:
+        """
+        分析文章内容，提取商品推荐关键词
+        
+        Args:
+            article_title: 文章标题
+            article_content: 文章内容
+            article_category: 文章分类
+            
+        Returns:
+            Dict[str, Any]: 分析结果，包含关键词、主题等
+        """
+        try:
+            prompt = f"""
+你是一位专业的母婴领域商品推荐专家。请分析以下文章内容，提取用于商品推荐的关键信息：
+
+文章标题：{article_title}
+文章分类：{article_category}
+文章内容：{article_content[:2000]}
+
+请以JSON格式返回以下信息：
+{{
+    "keywords": ["关键词1", "关键词2", "关键词3"],
+    "product_types": ["商品类型1", "商品类型2"],
+    "target_audience": ["目标人群1", "目标人群2"],
+    "price_range": "价格区间（低/中/高）",
+    "priority_categories": ["优先推荐分类1", "优先推荐分类2"]
+}}
+
+要求：
+1. 关键词要与商品名称、功能、用途相关
+2. 商品类型要具体（如：婴儿推车、奶粉、纸尿裤等）
+3. 目标人群要明确（如：新生儿、0-6个月、孕妇等）
+4. 优先推荐分类要与数据库中的商品分类对应
+5. 只返回JSON，不要添加任何其他内容
+"""
+            
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}"
+            }
+            
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": "你是一位专业的母婴领域商品推荐专家，擅长从文章中提取商品推荐信息。"},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 1000,
+                "temperature": 0.5
+            }
+            
+            response = requests.post(
+                self.base_url, 
+                headers=headers, 
+                json=payload,
+                timeout=30
+            )
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            
+            import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                return json.loads(json_match.group())
+            else:
+                logger.warning(f"AI返回内容格式不正确: {content}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"分析文章内容失败: {e}")
+            return None
+    
     def _parse_generated_content(self, content: str) -> Dict[str, str]:
         """
         解析生成的内容

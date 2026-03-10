@@ -193,3 +193,46 @@ class Like(Base):
         UniqueConstraint("user_id", "content_id", name="uq_user_content_like"),
         {"comment": "用户点赞表，记录用户点赞的文章，实现用户独立的点赞状态"},
     )
+
+
+class Product(Base):
+    """
+    商品模型
+    用于存储淘宝联盟商品信息
+    """
+    __tablename__ = "products"
+    
+    id = Column(Integer, primary_key=True, index=True, comment="商品ID")
+    name = Column(String(200), nullable=False, comment="商品名称")
+    description = Column(Text, nullable=True, comment="商品描述")
+    image_url = Column(String(500), nullable=False, comment="商品图片URL")
+    link_url = Column(String(500), nullable=False, comment="淘宝联盟链接")
+    price = Column(DECIMAL(10, 2), nullable=False, comment="商品价格")
+    category = Column(String(50), index=True, nullable=False, comment="商品分类（对应8大分类）")
+    is_active = Column(Boolean, default=True, index=True, comment="是否上架")
+    click_count = Column(Integer, default=0, comment="点击次数")
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), comment="创建时间")
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment="更新时间")
+    
+    __table_args__ = (
+        {"comment": "商品表，存储淘宝联盟商品信息，用于文章详情页广告推荐"},
+    )
+
+
+class ViewHistory(Base):
+    """
+    浏览历史模型
+    用于记录用户的文章浏览历史，用于个性化推荐
+    """
+    __tablename__ = "view_history"
+    
+    id = Column(Integer, primary_key=True, index=True, comment="浏览记录ID")
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=True, comment="用户ID（未登录用户为NULL）")
+    article_id = Column(Integer, ForeignKey("contents.id"), index=True, nullable=False, comment="文章ID")
+    session_id = Column(String(100), index=True, nullable=True, comment="会话ID（用于未登录用户）")
+    viewed_at = Column(DateTime(timezone=True), server_default=func.now(), index=True, comment="浏览时间")
+    
+    __table_args__ = (
+        UniqueConstraint('user_id', 'article_id', name='unique_user_article_view'),
+        {"comment": "浏览历史表，记录用户浏览的文章，用于个性化商品推荐"},
+    )

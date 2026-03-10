@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-pydantic
+pydantic[email]
 python-multipart
 sqlalchemy
 psycopg2-binary
@@ -10,3 +10,7 @@ passlib[bcrypt]
 requests
 pydantic-settings
 alipay-sdk-python
+fastapi_csrf_protect
+redis
+fastapi-limiter
+bcrypt==3.2.2

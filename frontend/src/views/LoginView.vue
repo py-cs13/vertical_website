@@ -67,11 +67,16 @@ const password = ref('')
 const loading = ref(false)
 const error = ref('')
 
-// 组件挂载时重置表单数据和错误信息
+// 组件挂载时重置表单数据、错误信息，并滚动到页面顶部
 onMounted(() => {
   email.value = ''
   password.value = ''
   error.value = ''
+  
+  // 滚动到页面顶部 - 添加小延迟确保组件完全挂载
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, 50)
 })
 
 // 处理登录

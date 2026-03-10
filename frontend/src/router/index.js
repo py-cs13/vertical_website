@@ -35,6 +35,16 @@ const routes = [
     component: () => import('../views/AboutView.vue')
   },
   {
+    path: '/privacy',
+    name: 'privacy',
+    component: () => import('../views/PrivacyView.vue')
+  },
+  {
+    path: '/terms',
+    name: 'terms',
+    component: () => import('../views/TermsView.vue')
+  },
+  {
     path: '/articles',
     name: 'articles',
     component: () => import('../views/ArticlesView.vue')
@@ -53,6 +63,11 @@ const routes = [
     path: '/agents',
     name: 'agents',
     component: () => import('../views/AgentsView.vue')
+  },
+  {
+    path: '/products',
+    name: 'products',
+    component: () => import('../views/ProductRecommendationView.vue')
   },
   {
     path: '/affiliate',
@@ -102,7 +117,20 @@ const routes = [
 // 创建路由实例
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    // 如果有保存的位置（如浏览器后退/前进），则恢复到该位置
+    if (savedPosition) {
+      return savedPosition
+    }
+    
+    // 默认情况下，每次路由跳转都滚动到页面顶部
+    // 添加平滑滚动动画
+    return { 
+      top: 0,
+      behavior: 'smooth'
+    }
+  }
 })
 
 // 路由守卫：在每次路由切换时重置错误信息并检查权限
@@ -124,7 +152,17 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth) {
     // 检查用户是否已登录
     if (!userStore.token) {
-      Swal.fire('提示', '请先登录', 'info').then(() => {
+      // 显示登录提示，并在用户确认后跳转登录页
+      Swal.fire({
+        title: '提示',
+        text: '请先登录',
+        icon: 'info',
+        confirmButtonText: '确定',
+        timer: undefined,
+        showCloseButton: false
+      }).then(() => {
+        // 弹窗关闭后立即滚动到顶部并跳转登录页
+        window.scrollTo({ top: 0, behavior: 'smooth' })
         next({ name: 'login' })
       })
       return
@@ -135,7 +173,13 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAdmin) {
     // 检查用户是否已登录
     if (!userStore.token) {
-      Swal.fire('提示', '请先登录', 'info').then(() => {
+      Swal.fire({
+        title: '提示',
+        text: '请先登录',
+        icon: 'info',
+        confirmButtonText: '确定'
+      }).then(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
         next({ name: 'login' })
       })
       return
@@ -143,7 +187,13 @@ router.beforeEach((to, from, next) => {
     
     // 检查用户是否为管理员
     if (!userStore.isAdmin) {
-      Swal.fire('权限不足', '您没有管理员权限', 'error').then(() => {
+      Swal.fire({
+        title: '权限不足',
+        text: '您没有管理员权限',
+        icon: 'error',
+        confirmButtonText: '确定'
+      }).then(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
         next({ name: 'home' })
       })
       return

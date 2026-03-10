@@ -17,6 +17,8 @@
             <li><router-link to="/about">关于我们</router-link></li>
             <li><router-link to="/articles">文章中心</router-link></li>
             <li><router-link to="/agents">智能体工具</router-link></li>
+            <li><router-link to="/privacy">隐私政策</router-link></li>
+            <li><router-link to="/terms">用户协议</router-link></li>
           </ul>
         </div>
         
@@ -41,7 +43,19 @@
       </div>
       
       <div class="footer-bottom">
-        <p>&copy; {{ new Date().getFullYear() }} 母婴趣指南. 保留所有权利.</p>
+        <div class="footer-bottom-content">
+          <p>&copy; {{ new Date().getFullYear() }} 母婴趣指南. 保留所有权利.</p>
+          <div class="filing-info">
+            <a href="https://beian.mps.gov.cn/#/query/webSearch?code=13043002130446" 
+               target="_blank" rel="noopener noreferrer" class="filing-link">
+              <img src="/beian-icon.png" alt="公安备案" class="beian-icon" />
+              冀公网安备13043002130446号
+            </a>
+            <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" class="filing-link">
+              冀ICP备2025138678号-1
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   </footer>
@@ -211,8 +225,45 @@
   font-size: 14px;
 }
 
+.footer-bottom-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
 .footer-bottom p {
   margin: 0;
+}
+
+.filing-info {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.filing-link {
+  color: var(--text-light);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  padding: 5px 10px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.filing-link:hover {
+  color: var(--primary-color);
+  background-color: var(--bg-accent);
+}
+
+.beian-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
 }
 
 /* 响应式设计 */

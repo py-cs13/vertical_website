@@ -78,8 +78,9 @@ export const useContentStore = defineStore('content', {
       this.loading = true
       this.error = null
       try {
-        // 清除旧缓存，确保获取最新点赞数
+        // 清除所有缓存，确保获取最新数据
         this.clearCachedData('latest_articles')
+        this.clearCachedData('article_*')
         
         // 直接从API获取最新文章，不使用缓存
         const response = await apiClient.get('/articles')
@@ -92,22 +93,13 @@ export const useContentStore = defineStore('content', {
         }
         console.log('API返回的文章数量:', data.length)
         this.articles = data
-        // 更新缓存
-        this.setCachedData('latest_articles', this.articles)
+        // 不再设置缓存，确保每次都从数据库获取最新数据
       } catch (error) {
         this.error = error.message
         console.error('Failed to fetch latest articles from API:', error)
         
-        // API请求失败时，尝试从缓存获取
-        const cachedArticles = this.getCachedData('latest_articles')
-        if (cachedArticles) {
-          console.log('使用缓存的文章数据')
-          this.articles = cachedArticles
-        } else {
-          // 如果缓存也没有数据，使用空数组
-          console.log('没有可用的文章数据，使用空数组')
-          this.articles = []
-        }
+        // API请求失败时，不使用缓存，直接清空数据
+        this.articles = []
       } finally {
         this.loading = false
       }
@@ -277,6 +269,9 @@ export const useContentStore = defineStore('content', {
       if (index !== -1) {
         // 更新列表中的文章数据
         this.articles[index] = { ...this.articles[index], ...articleData }
+      } else {
+        // 如果文章不存在于列表中，添加到列表中
+        this.articles.push(articleData)
       }
     },
     

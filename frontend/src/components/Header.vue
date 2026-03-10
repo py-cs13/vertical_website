@@ -12,6 +12,7 @@
             <li><router-link to="/">首页</router-link></li>
             <li><router-link to="/articles">文章</router-link></li>
             <li><router-link to="/agents">智能体</router-link></li>
+            <li><router-link to="/products">精选好物</router-link></li>
             <li><router-link to="/about">关于我们</router-link></li>
           </ul>
         </nav>
@@ -39,7 +40,7 @@
           
           <template v-if="userStore.isAuthenticated">
             <div class="user-profile">
-              <span class="user-name">{{ userStore.user?.username || '用户' }}</span>
+              <span class="user-name" :title="userStore.user?.username">{{ truncatedUsername }}</span>
             </div>
           </template>
           <template v-else>
@@ -105,11 +106,12 @@
             <li><router-link to="/" @click="showMobileMenu = false">首页</router-link></li>
             <li><router-link to="/articles" @click="showMobileMenu = false">文章</router-link></li>
             <li><router-link to="/agents" @click="showMobileMenu = false">智能体</router-link></li>
+            <li><router-link to="/products" @click="showMobileMenu = false">精选好物</router-link></li>
             <li><router-link to="/about" @click="showMobileMenu = false">关于我们</router-link></li>
             <li><a href="#" @click.prevent="showMobileMenu = false; showAffiliateAlert">联盟合作</a></li>
             <li v-if="userStore.isAuthenticated">
               <router-link to="/user" @click="showMobileMenu = false" class="user-info">
-                <span class="user-name">{{ userStore.user?.username || '用户' }}</span>
+                <span class="user-name" :title="userStore.user?.username">{{ truncatedUsername }}</span>
               </router-link>
             </li>
             <li v-if="userStore.isAuthenticated">
@@ -126,7 +128,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from '../stores'
 import Swal from 'sweetalert2'
 import { useRouter } from 'vue-router'
@@ -137,6 +139,15 @@ const showDesktopMenu = ref(false)
 const showSearch = ref(false)
 const searchQuery = ref('')
 const router = useRouter()
+
+// 计算属性：截断用户名显示（最多5个字符）
+const truncatedUsername = computed(() => {
+  const username = userStore.user?.username || '用户'
+  if (username.length <= 5) {
+    return username
+  }
+  return username.substring(0, 5) + '...'
+})
 
 // 切换菜单（根据屏幕尺寸判断显示哪个菜单）
 const toggleMenu = () => {
@@ -491,6 +502,12 @@ const showContactAlert = () => {
   padding: 4px 8px;
   background-color: var(--bg-accent);
   border-radius: 12px;
+  /* 新增：用户名长度限制 */
+  max-width: 85px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
 }
 
 /* 移动端导航 */
@@ -561,6 +578,12 @@ const showContactAlert = () => {
   
   .search-container.expanded .search-input {
     width: 170px;
+  }
+  
+  /* 移动端用户名长度限制 */
+  .user-name {
+    max-width: 70px;
+    font-size: 14px;
   }
 }
 

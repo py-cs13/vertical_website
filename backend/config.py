@@ -21,16 +21,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # 数据库配置
-    DATABASE_URL: str = "postgresql://vertical_user:pg123456@101.43.177.216:5432/vertical_website"  # 生产数据库
+    DATABASE_URL: str = "postgresql://vertical_user:1227Bing..@101.43.177.216:5432/vertical_website"  # 生产数据库（更新密码）
     TEST_DATABASE_URL: str = "sqlite:///./test.db"  # 测试数据库（SQLite）
     
     # Redis配置
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = "redis://:1227Bing..@redis:6379/0"  # 使用Docker容器的Redis服务
     
     # CSRF配置
     CSRF_SECRET_KEY: str = SECRET_KEY  # 默认使用SECRET_KEY
     CSRF_COOKIE_SAMESITE: str = "lax"
-    CSRF_COOKIE_SECURE: bool = not DEBUG
+    CSRF_COOKIE_SECURE: bool = False  # 生产环境暂时禁用CSRF cookie的secure属性
     
     # CORS配置
     CORS_ALLOW_ORIGINS: list = ["*"]
